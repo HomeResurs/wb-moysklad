@@ -32,10 +32,15 @@ function corsHeaders(origin) {
   };
 }
 
+// Просим браузер не переходить на HTTP/3 (QUIC, UDP): у многих провайдеров в РФ UDP до Cloudflare
+// теряется, и после первых успешных запросов по TCP всё начинает падать с ERR_QUIC_PROTOCOL_ERROR.
+// На workers.dev Cloudflare подменяет этот заголовок своим h3; помогает только на своём домене с выключенным HTTP/3.
+const NO_QUIC = { 'Alt-Svc': 'clear' };
+
 function jsonResponse(status, body, extraHeaders) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...extraHeaders },
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...NO_QUIC, ...extraHeaders },
   });
 }
 
@@ -81,7 +86,7 @@ export async function handle(req, env = {}) {
   const cors = origin && (allowedOrigins(url.origin, env).has(origin) || isLocalDev(origin)) ? corsHeaders(origin) : {};
 
   if (origin && !Object.keys(cors).length) return fail(403, 'Запрос с чужого сайта отклонён: ' + origin);
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...NO_QUIC, ...cors } });
 
   if (url.searchParams.has('ping')) {
     return jsonResponse(200, { ok: true, proxy: env.PROXY_NAME || 'netlify', region: env.AWS_REGION || env.CF_REGION || null }, cors);
@@ -110,6 +115,7 @@ export async function handle(req, env = {}) {
   const headers = {
     'Content-Type': upstream.headers.get('content-type') || 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
+    ...NO_QUIC,
     ...cors,
   };
   for (const h of PASSTHROUGH_HEADERS) {

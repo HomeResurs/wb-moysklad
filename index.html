@@ -453,7 +453,11 @@ async function apiFetch(path, opts = {}){
   }
 }
 
+let pingRetryTimer = null;
+const PING_RECHECK_MS = 30000; // пока прокси недоступен — перепроверяем сами
+
 async function pingProxy(){
+  clearTimeout(pingRetryTimer); pingRetryTimer = null;
   state.proxy = {status:'checking', info:null, error:null};
   update();
   if (location.protocol === 'file:'){
@@ -482,17 +486,23 @@ async function pingProxy(){
       if (!e.network) break; // прокси ответил, но неверно — запасные не помогут
     }
   }
-  state.proxy = {status:'fail', info:null, error: (lastError && lastError.message) || 'Прокси недоступен.'};
+  state.proxy = {status:'fail', info:null, error: ((lastError && lastError.message) || 'Прокси недоступен.') + ' Повторная проверка через 30 с.'};
   update();
+  pingRetryTimer = setTimeout(() => { if (state.proxy.status === 'fail') pingProxy(); }, PING_RECHECK_MS);
 }
 
 async function pingOne(base){
   const url = isQueryStyle(base) ? base + (base.includes('?')?'&':'?') + 'ping=1' : base.replace(/\/+$/,'') + '/ping';
   let res;
-  try{
-    res = await fetch(url, {cache:'no-store', credentials:'same-origin', signal: AbortSignal.timeout(8000)});
-  }catch(e){
-    throw mkErr('network', 'Нет связи с прокси «' + base + '» (' + (e.message || 'ошибка сети') + '). Возможно, адрес блокирует провайдер или антивирус.', {network:true});
+  // Три попытки: после сбоя QUIC (HTTP/3) браузер со второй попытки идёт по обычному TCP.
+  for (let attempt = 0; ; attempt++){
+    try{
+      res = await fetch(url, {cache:'no-store', credentials:'same-origin', signal: AbortSignal.timeout(8000)});
+      break;
+    }catch(e){
+      if (attempt < 2){ await sleep(1000 * (attempt + 1)); continue; }
+      throw mkErr('network', 'Нет связи с прокси «' + base + '» (' + (e.message || 'ошибка сети') + '). Возможно, адрес блокирует провайдер или антивирус.', {network:true});
+    }
   }
   const text = await res.text();
   if (/^\s*<\?php/.test(text)) throw new Error('PHP на хостинге не выполняется — включите PHP для сайта.');
