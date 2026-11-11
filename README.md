@@ -9,21 +9,22 @@
 
 ```
 браузер → GitHub Pages (index.html, статика)
-        → https://wb-moysklad-proxy.netlify.app/api/ms (Netlify Function, прокси)
+        → https://wb-moysklad-proxy.lok19787.workers.dev/api/ms (Cloudflare Worker, прокси)
         → https://api.moysklad.ru
 ```
 
 `api.moysklad.ru` не отдаёт CORS-заголовки, поэтому напрямую из браузера к нему
 обратиться нельзя. GitHub Pages умеет только статику, поэтому прокси живёт
-отдельно, на бесплатном тарифе Netlify. Токен МойСклад хранится только в
+отдельно, на бесплатном тарифе Cloudflare Workers (100 000 запросов в день). Токен МойСклад хранится только в
 браузере пользователя, прокси его не сохраняет и не логирует.
 
 | Файл | Зачем |
 |---|---|
 | `index.html` | сам инструмент |
 | `vendor/xlsx.full.min.js` | чтение Excel (локально, без CDN) |
-| `netlify/functions/ms.mjs` | прокси к API МойСклад (Netlify Function, путь `/api/ms`) |
-| `netlify.toml` | настройки Netlify: папка функций, заголовки |
+| `netlify/functions/ms.mjs` | логика прокси к API МойСклад (общая для Cloudflare и Netlify) |
+| `cloudflare/worker.mjs`, `wrangler.toml` | обёртка Cloudflare Worker, путь `/api/ms` — **рабочий прокси** |
+| `netlify.toml` | запасной вариант: та же функция на Netlify |
 | `alt-proxy/` | запасные варианты прокси: `ms-proxy.php` (PHP-хостинг), `nginx.conf.example` |
 | `.nojekyll` | GitHub Pages отдаёт файлы как есть, без Jekyll |
 
@@ -34,7 +35,7 @@
 Settings → Pages → Source: *Deploy from a branch*, ветка `main`, папка `/ (root)`.
 Каждый push в `main` обновляет сайт за минуту-две.
 
-### Прокси — Netlify
+### Прокси — Netlify (запасной вариант)
 
 Один раз, из папки репозитория (нужен `netlify-cli` и вход в аккаунт):
 
@@ -58,10 +59,11 @@ netlify deploy --prod --site wb-moysklad-proxy
 Так как `netlify deploy` выкладывает и статику, инструмент открывается и по
 адресу `https://wb-moysklad-proxy.netlify.app/` — там прокси на том же домене.
 
-### Прокси — Cloudflare Workers (альтернатива Netlify)
+### Прокси — Cloudflare Workers (основной)
 
-Та же функция, обёрнутая в Worker (`cloudflare/worker.mjs`, `wrangler.toml`).
-Бесплатно до 100 000 запросов в день.
+Функция, обёрнутая в Worker (`cloudflare/worker.mjs`, `wrangler.toml`).
+Бесплатно до 100 000 запросов в день. Текущий адрес:
+`https://wb-moysklad-proxy.lok19787.workers.dev/api/ms` (проверка: `?ping=1`).
 
 ```bash
 npx wrangler login
