@@ -9,8 +9,7 @@
 
 ```
 браузер → GitHub Pages (index.html, статика)
-        → https://ms-proxy.my-plan-track.ru/api/ms (Cloudflare Worker, прокси)
-          запасной: https://wb-moysklad-proxy.lok19787.workers.dev/api/ms
+        → https://wb-moysklad-proxy.lok19787.workers.dev/api/ms (Cloudflare Worker, прокси)
         → https://api.moysklad.ru
 ```
 
@@ -63,14 +62,11 @@ netlify deploy --prod --site wb-moysklad-proxy
 ### Прокси — Cloudflare Workers (основной)
 
 Функция, обёрнутая в Worker (`cloudflare/worker.mjs`, `wrangler.toml`).
-Бесплатно до 100 000 запросов в день. Адреса (проверка: `?ping=1`):
+Бесплатно до 100 000 запросов в день. Адрес:
+`https://wb-moysklad-proxy.lok19787.workers.dev/api/ms` (проверка: `?ping=1`).
 
-- основной: `https://ms-proxy.my-plan-track.ru/api/ms` — свой поддомен, потому что
-  `*.workers.dev` в РФ блокируют многие провайдеры;
-- запасной: `https://wb-moysklad-proxy.lok19787.workers.dev/api/ms`.
-
-Страница сначала проверяет основной адрес и при сетевой ошибке сама
-переключается на запасной (`CONFIG.PROXY_FALLBACKS` в `index.html`).
+Запасные адреса прокси можно перечислить в `CONFIG.PROXY_FALLBACKS` в
+`index.html`: при сетевой ошибке страница сама переключится на них.
 
 ```bash
 npx wrangler login

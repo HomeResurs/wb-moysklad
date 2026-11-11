@@ -236,7 +236,7 @@ tr.open .chev{transform:rotate(90deg)}
       <section class="card hidden" id="params"></section>
     </aside>
   </div>
-  <p class="foot">Запросы идут так: браузер → прокси (<span class="mono">ms-proxy.my-plan-track.ru</span>) → <span class="mono">api.moysklad.ru</span>. Токен хранится только в этом браузере.</p>
+  <p class="foot">Запросы идут так: браузер → прокси (<span class="mono">wb-moysklad-proxy.lok19787.workers.dev</span>) → <span class="mono">api.moysklad.ru</span>. Токен хранится только в этом браузере.</p>
 </div>
 <input type="file" id="file-input" accept=".xlsx,.xls,.xlsm,.csv" multiple>
 <div class="toasts" id="toasts"></div>
@@ -249,9 +249,9 @@ tr.open .chev{transform:rotate(90deg)}
 const CONFIG = {
   // Адрес прокси. Страница на GitHub Pages ходит на Cloudflare Worker; если страница открыта
   // с Netlify-сайта — прокси на том же домене. PHP-хостинг: 'ms-proxy.php'. Свой nginx: '/ms-api'.
-  PROXY_URL: /\.netlify\.app$/i.test(location.hostname) ? '/api/ms' : 'https://ms-proxy.my-plan-track.ru/api/ms',
-  // Запасные адреса: если основной не отвечает (например, провайдер блокирует домен), страница сама переключится.
-  PROXY_FALLBACKS: ['https://wb-moysklad-proxy.lok19787.workers.dev/api/ms'],
+  PROXY_URL: /\.netlify\.app$/i.test(location.hostname) ? '/api/ms' : 'https://wb-moysklad-proxy.lok19787.workers.dev/api/ms',
+  // Запасные адреса прокси: если основной не отвечает, страница сама переключится. Сейчас запасных нет.
+  PROXY_FALLBACKS: [],
   DEFAULT_AGENT: 'ВАЙЛДБЕРРИЗ',
   DEFAULT_STORE: 'WB наш склад',
   QTY_ATTRIBUTE_NAME: 'Кол-во',          // доп. поле заказа покупателя: суммарное кол-во
@@ -1087,7 +1087,7 @@ function renderConn(){
         <div class="field" style="margin-top:8px">
           <div class="inline"><input type="text" id="in-proxy" data-bind="proxyUrl" value="${esc(state.proxyUrl)}" spellcheck="false">
           <button class="btn sm ghost" data-action="ping">Проверить</button></div>
-          <p class="help">По умолчанию: <span class="mono">https://ms-proxy.my-plan-track.ru/api/ms</span>, запасной: <span class="mono">https://wb-moysklad-proxy.lok19787.workers.dev/api/ms</span> · PHP-хостинг: <span class="mono">ms-proxy.php</span> · nginx: <span class="mono">/ms-api</span>. Пустое поле — адрес по умолчанию.</p>
+          <p class="help">По умолчанию: <span class="mono">https://wb-moysklad-proxy.lok19787.workers.dev/api/ms</span> · PHP-хостинг: <span class="mono">ms-proxy.php</span> · nginx: <span class="mono">/ms-api</span>. Пустое поле — адрес по умолчанию.</p>
         </div>
       </details>
     </div>`;
