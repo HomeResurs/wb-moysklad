@@ -376,7 +376,9 @@ async function gate(){
 }
 function mkErr(kind, message, extra){ const e = new Error(message); e.kind = kind; Object.assign(e, extra||{}); return e; }
 function isSameOriginBase(base){ return !/^https?:\/\//i.test(base) || base.startsWith(location.origin); }
-const isQueryStyle = base => /\.php(\?.*)?$/i.test(base) || /\/api\/ms\/?$/i.test(base);
+// Прокси, которым путь передаётся параметром ?path=: PHP, /api/ms (Cloudflare, Netlify, локальный запуск),
+// Yandex Cloud Functions (https://functions.yandexcloud.net/<id>).
+const isQueryStyle = base => /\.php(\?.*)?$/i.test(base) || /\/api\/ms\/?$/i.test(base) || /^https:\/\/functions\.yandexcloud\.net\/[a-z0-9]+\/?$/i.test(base);
 function buildUrl(path){
   const base = state.proxyUrl.trim();
   if (isQueryStyle(base)) return base + (base.includes('?') ? '&' : '?') + 'path=' + encodeURIComponent(path);
