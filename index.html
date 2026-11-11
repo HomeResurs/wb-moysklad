@@ -382,22 +382,45 @@ function buildUrl(path){
   return base.replace(/\/+$/,'') + path;
 }
 
+// Запасной прокси, который ещё не пробовали в этой сессии (после сетевой ошибки основного).
+function nextProxyFallback(tried){
+  return (CONFIG.PROXY_FALLBACKS || []).find(u => !tried.includes(u)) || null;
+}
+function switchProxy(to){
+  state.proxyUrl = to; state.proxyAuto = true;
+  state.proxy = {status:'ok', info:state.proxy && state.proxy.info, error:null, warn:'Основной прокси не отвечает, переключились на запасной: ' + to};
+  update();
+}
+
 async function apiFetch(path, opts = {}){
   const method = opts.method || 'GET';
   const auth = opts.auth || state.authHeader;
-  const base = state.proxyUrl.trim();
-  const headers = {'Accept':'application/json;charset=utf-8'};
-  if (auth) headers[isSameOriginBase(base) ? 'X-Ms-Authorization' : 'Authorization'] = auth;
-  if (opts.body) headers['Content-Type'] = 'application/json';
-  const url = buildUrl(path);
+  let base = state.proxyUrl.trim();
+  const tried = [base];
+  const mkHeaders = () => {
+    const h = {'Accept':'application/json;charset=utf-8'};
+    if (auth) h[isSameOriginBase(base) ? 'X-Ms-Authorization' : 'Authorization'] = auth;
+    if (opts.body) h['Content-Type'] = 'application/json';
+    return h;
+  };
+  let headers = mkHeaders();
+  let url = buildUrl(path);
 
   for (let attempt = 0; ; attempt++){
     await gate();
     let res;
     try{
-      res = await fetch(url, {method, headers, body: opts.body ? JSON.stringify(opts.body) : undefined, cache:'no-store', credentials:'same-origin'});
+      res = await fetch(url, {method, headers, body: opts.body ? JSON.stringify(opts.body) : undefined, cache:'no-store', credentials:'same-origin', signal: AbortSignal.timeout(20000)});
     }catch(e){
       if (method === 'GET' && attempt < 2){ await sleep(700 * (attempt+1)); continue; }
+      const fallback = nextProxyFallback(tried);
+      if (fallback){
+        // Основной прокси не отвечает (блокировка, QUIC, DNS) — переходим на запасной.
+        switchProxy(fallback);
+        base = fallback; tried.push(fallback); headers = mkHeaders(); url = buildUrl(path);
+        if (method === 'GET'){ attempt = -1; continue; }
+        throw mkErr('network', 'Прокси «' + tried[tried.length-2] + '» не ответил, переключились на «' + fallback + '». Повторите действие.');
+      }
       throw mkErr('network', isSameOriginBase(base)
         ? 'Нет связи с сервером сайта. Проверьте интернет и повторите.'
         : 'Не удалось обратиться к прокси «' + base + '». Проверьте интернет или адрес прокси в настройках (пустое поле вернёт адрес по умолчанию).');
