@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Импорт заказов WB → МойСклад</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d3ae8'/%3E%3Cpath d='M8 11h9l-3-3m3 3-3 3M24 21h-9l3 3m-3-3 3-3' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<script src="vendor/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f4f5f8; --surface:#ffffff; --surface-2:#f8f9fb; --surface-3:#eef0f4;
+  --border:#e2e5ea; --border-strong:#cdd2da;
+  --text:#141922; --text-2:#4a5364; --text-3:#7a8394;
+  --accent:#6d3ae8; --accent-hover:#5f2fd6; --accent-contrast:#ffffff; --accent-soft:#f0eafe; --accent-ring:rgba(109,58,232,.28);
+  --ok:#12804a; --ok-soft:#e5f5ec; --warn:#a85a06; --warn-soft:#fdf1e1;
+  --err:#c42b2b; --err-soft:#fdeaea; --info:#1f6bd1; --info-soft:#e7f0fc;
+  --shadow:0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.06);
+  --shadow-lg:0 12px 32px rgba(16,24,40,.14);
+  --radius:12px; --radius-sm:8px;
+  --font:-apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono:ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Roboto Mono", monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1116; --surface:#161a21; --surface-2:#1b2029; --surface-3:#222834;
+    --border:#29303b; --border-strong:#3a4250;
+    --text:#e9ebef; --text-2:#aeb5c1; --text-3:#7a8392;
+    --accent:#9c7cff; --accent-hover:#ae93ff; --accent-contrast:#140a2b; --accent-soft:#261f40; --accent-ring:rgba(156,124,255,.35);
+    --ok:#46c783; --ok-soft:#15301f; --warn:#f0a548; --warn-soft:#352612;
+    --err:#ff7070; --err-soft:#3a191b; --info:#62a6ff; --info-soft:#15263d;
+    --shadow:0 1px 2px rgba(0,0,0,.4); --shadow-lg:0 16px 40px rgba(0,0,0,.5);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1116; --surface:#161a21; --surface-2:#1b2029; --surface-3:#222834;
+  --border:#29303b; --border-strong:#3a4250;
+  --text:#e9ebef; --text-2:#aeb5c1; --text-3:#7a8392;
+  --accent:#9c7cff; --accent-hover:#ae93ff; --accent-contrast:#140a2b; --accent-soft:#261f40; --accent-ring:rgba(156,124,255,.35);
+  --ok:#46c783; --ok-soft:#15301f; --warn:#f0a548; --warn-soft:#352612;
+  --err:#ff7070; --err-soft:#3a191b; --info:#62a6ff; --info-soft:#15263d;
+  --shadow:0 1px 2px rgba(0,0,0,.4); --shadow-lg:0 16px 40px rgba(0,0,0,.5);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font:14px/1.5 var(--font);min-height:100vh;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--mono);font-size:12.5px}
+.muted{color:var(--text-3)}
+.hidden{display:none!important}
+
+.wrap{max-width:1240px;margin:0 auto;padding:20px 20px 64px}
+
+/* ---------- Top bar ---------- */
+.topbar{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.logo{width:40px;height:40px;border-radius:11px;background:var(--accent);display:grid;place-items:center;flex-shrink:0}
+.logo svg{width:24px;height:24px}
+.title h1{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em}
+.title p{margin:1px 0 0;color:var(--text-3);font-size:12.5px}
+.topbar .spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface);font-size:12.5px;font-weight:600;color:var(--text-2);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--text-3);flex-shrink:0}
+.dot.ok{background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+.dot.warn{background:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)}
+.dot.err{background:var(--err);box-shadow:0 0 0 3px var(--err-soft)}
+.icon-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;display:inline-grid;place-items:center;flex-shrink:0}
+.icon-btn:hover{border-color:var(--border-strong);color:var(--text)}
+.icon-btn svg{width:17px;height:17px}
+
+/* ---------- Layout ---------- */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+.side{position:sticky;top:16px;display:flex;flex-direction:column;gap:18px}
+.main{display:flex;flex-direction:column;gap:18px;min-width:0}
+@media (max-width:980px){.grid{grid-template-columns:1fr}.side{position:static;order:-1}}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.card-head h2{margin:0;font-size:14.5px;font-weight:700}
+.card-head .sub{color:var(--text-3);font-size:12.5px}
+.card-head .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.card-body{padding:16px 18px}
+.step-n{width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:700;display:grid;place-items:center;flex-shrink:0}
+.step-n.done{background:var(--ok-soft);color:var(--ok)}
+
+/* ---------- Forms ---------- */
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.label{display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px}
+.help{font-size:12px;color:var(--text-3);margin:5px 0 0}
+input[type=text],input[type=password],input[type=datetime-local],select{
+  width:100%;height:36px;padding:0 11px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);
+  background:var(--surface);color:var(--text);font-size:13.5px;transition:border-color .12s, box-shadow .12s}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring)}
+input:disabled,select:disabled{opacity:.6}
+.inline{display:flex;gap:8px}
+.inline > input,.inline > select{flex:1;min-width:0}
+.check{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--text-2);cursor:pointer;user-select:none}
+.check input{margin:2px 0 0;accent-color:var(--accent);width:15px;height:15px;flex-shrink:0}
+
+.seg{display:flex;background:var(--surface-3);border-radius:9px;padding:3px;margin-bottom:14px}
+.seg button{flex:1;border:0;background:transparent;padding:6px 10px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--text-2);cursor:pointer}
+.seg button.on{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+
+/* ---------- Buttons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:36px;padding:0 15px;border-radius:var(--radius-sm);
+  border:1px solid var(--accent);background:var(--accent);color:var(--accent-contrast);font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .12s, border-color .12s}
+.btn:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.lg{height:42px;padding:0 20px;font-size:14.5px}
+.btn.sm{height:30px;padding:0 11px;font-size:12.5px}
+.btn.xs{height:26px;padding:0 9px;font-size:12px;border-radius:6px}
+.btn.ghost{background:var(--surface);color:var(--text);border-color:var(--border-strong)}
+.btn.ghost:hover{background:var(--surface-2);border-color:var(--text-3)}
+.btn.link{background:transparent;border-color:transparent;color:var(--accent);padding:0 6px}
+.btn.link:hover{background:var(--accent-soft)}
+.btn.danger{color:var(--err)}
+.btn.block{width:100%}
+.btn svg{width:16px;height:16px}
+.spin{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- Alerts ---------- */
+.alert{border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;display:flex;gap:9px;align-items:flex-start;margin-bottom:12px;border:1px solid transparent}
+.alert:last-child{margin-bottom:0}
+.alert .ic{flex-shrink:0;font-weight:700;line-height:1.45}
+.alert-err{background:var(--err-soft);color:var(--text);border-color:color-mix(in srgb,var(--err) 30%,transparent)}
+.alert-err .ic{color:var(--err)}
+.alert-ok{background:var(--ok-soft);border-color:color-mix(in srgb,var(--ok) 30%,transparent)}
+.alert-ok .ic{color:var(--ok)}
+.alert-warn{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+.alert-warn .ic{color:var(--warn)}
+.alert-info{background:var(--info-soft);border-color:color-mix(in srgb,var(--info) 25%,transparent)}
+.alert-info .ic{color:var(--info)}
+.alert b{font-weight:700}
+
+/* ---------- Connection summary ---------- */
+.kv{display:flex;flex-direction:column;gap:2px;margin-bottom:12px}
+.kv .k{font-size:11.5px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.kv .v{font-weight:600}
+.status-line{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-2);margin-top:6px}
+
+/* ---------- Dropzone ---------- */
+.dropzone{border:1.5px dashed var(--border-strong);border-radius:var(--radius);padding:26px 18px;text-align:center;cursor:pointer;transition:border-color .12s, background .12s;background:var(--surface-2)}
+.dropzone:hover,.dropzone.drag,body.dragging .dropzone{border-color:var(--accent);background:var(--accent-soft)}
+.dropzone .dz-ic{width:42px;height:42px;border-radius:11px;background:var(--surface);border:1px solid var(--border);display:grid;place-items:center;margin:0 auto 10px;color:var(--accent)}
+.dropzone .dz-ic svg{width:22px;height:22px}
+.dropzone .t{font-weight:600;font-size:14px}
+.dropzone .s{color:var(--text-3);font-size:12.5px;margin-top:3px}
+.dropzone.compact{padding:12px 16px;display:flex;align-items:center;gap:12px;text-align:left}
+.dropzone.compact .dz-ic{margin:0;width:34px;height:34px}
+#file-input{display:none}
+
+.mapping{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:12.5px;color:var(--text-2);padding:10px 0 0}
+.mapping .tag{font-family:var(--mono);font-size:12px;background:var(--surface-3);padding:2px 7px;border-radius:5px;color:var(--text)}
+.map-edit{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;margin-top:10px;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm)}
+@media (max-width:600px){.map-edit{grid-template-columns:1fr}}
+
+/* ---------- Toolbar ---------- */
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 18px;border-top:1px solid var(--border);background:var(--surface-2);border-radius:0 0 var(--radius) var(--radius)}
+.toolbar .grow{flex:1}
+
+/* ---------- Progress ---------- */
+.progress{padding:12px 18px;border-bottom:1px solid var(--border);background:var(--info-soft)}
+.progress .pl{display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;color:var(--text-2);margin-bottom:7px;gap:10px}
+.bar{height:6px;background:var(--surface-3);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:4px;transition:width .2s ease}
+
+/* ---------- Tables ---------- */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface-2)}
+td{padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child > td{border-bottom:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.file-row{cursor:pointer}
+tr.file-row:hover > td{background:var(--surface-2)}
+tr.file-row.open > td{background:var(--surface-2);border-bottom-color:transparent}
+.fname{font-weight:600;display:flex;align-items:center;gap:7px;word-break:break-all}
+.fname .chev{width:14px;height:14px;color:var(--text-3);transition:transform .15s;flex-shrink:0}
+tr.open .chev{transform:rotate(90deg)}
+.fsub{font-family:var(--mono);font-size:11.5px;color:var(--text-3);margin:2px 0 0 21px;white-space:nowrap}
+.fsub.wrap{white-space:normal;font-family:var(--font);font-size:12px}
+.detail td{background:var(--surface-2);padding:0 12px 14px}
+.detail table{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;border-collapse:separate;border-spacing:0}
+.detail th{background:var(--surface-3)}
+.detail td{background:var(--surface);padding:7px 12px;font-size:12.5px}
+.zero{color:var(--text-3)}
+.warnnum{color:var(--err);font-weight:700}
+.row-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:nowrap}
+.sheet-sel{height:26px;width:auto;font-size:12px;padding:0 6px;margin-left:21px;margin-top:4px}
+
+/* ---------- Pills ---------- */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:var(--surface-3);color:var(--text-2)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.err{background:var(--err-soft);color:var(--err)}
+.pill.info{background:var(--info-soft);color:var(--info)}
+.pill.accent{background:var(--accent-soft);color:var(--accent)}
+.pill .spin{width:11px;height:11px;border-width:1.5px}
+.pill a{color:inherit}
+
+/* ---------- Summary ---------- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
+.stat{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px}
+.stat .n{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.stat .l{font-size:12px;color:var(--text-3);margin-top:2px}
+.stat.ok .n{color:var(--ok)} .stat.err .n{color:var(--err)} .stat.warn .n{color:var(--warn)}
+
+.empty{padding:30px 18px;text-align:center;color:var(--text-3);font-size:13px}
+.foot{margin-top:26px;text-align:center;color:var(--text-3);font-size:12px}
+
+/* ---------- Toast ---------- */
+.toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:50;max-width:min(380px,calc(100vw - 32px))}
+.toast{background:var(--text);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:13px;box-shadow:var(--shadow-lg);animation:tin .2s ease}
+@keyframes tin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:600px){.topbar{gap:10px}.topbar .spacer{display:none}.title{flex:1 1 0;min-width:0}.title h1{font-size:16px}.chip{order:3;width:100%}.card-head .sub{display:none}.wrap{padding:14px 16px 48px}.card-head,.card-body,.toolbar{padding-left:14px;padding-right:14px}.title p{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar" id="hdr"></header>
+  <div class="grid">
+    <main class="main">
+      <section class="card" id="files"></section>
+      <section class="card hidden" id="summary"></section>
+    </main>
+    <aside class="side">
+      <section class="card" id="conn"></section>
+      <section class="card hidden" id="params"></section>
+    </aside>
+  </div>
+  <p class="foot">Запросы идут так: браузер → прокси (<span class="mono">wb-moysklad-proxy.netlify.app</span>) → <span class="mono">api.moysklad.ru</span>. Токен хранится только в этом браузере.</p>
+</div>
+<input type="file" id="file-input" accept=".xlsx,.xls,.xlsm,.csv" multiple>
+<div class="toasts" id="toasts"></div>
+
+<script>
+'use strict';
+/* ============================================================
+   НАСТРОЙКИ
+   ============================================================ */
+const CONFIG = {
+  // Адрес прокси. Страница на GitHub Pages ходит на Netlify-функцию; если страница открыта
+  // с самого Netlify-сайта — прокси на том же домене. PHP-хостинг: 'ms-proxy.php'. Свой nginx: '/ms-api'.
+  PROXY_URL: /\.netlify\.app$/i.test(location.hostname) ? '/api/ms' : 'https://wb-moysklad-proxy.netlify.app/api/ms',
+  DEFAULT_AGENT: 'ВАЙЛДБЕРРИЗ',
+  DEFAULT_STORE: 'WB наш склад',
+  QTY_ATTRIBUTE_NAME: 'Кол-во',          // доп. поле заказа покупателя: суммарное кол-во
+  DEFAULT_COLUMNS: {article: 6, barcode: 8}, // если заголовки не нашлись: G и I
+  BATCH_SIZE: 20,                        // штрихкодов в одном запросе поиска
+  REQUEST_GAP_MS: 70,                    // пауза между запросами (лимит МС — 45 запросов / 3 с)
+};
+const STORAGE_KEY = 'wbms.v2';
+const MS_APP = 'https://online.moysklad.ru/app/';
+
+/* ============================================================
+   СОСТОЯНИЕ
+   ============================================================ */
+const saved = loadSaved();
+const state = {
+  theme: saved.theme || 'system',
+  proxyUrl: saved.proxyUrl || CONFIG.PROXY_URL,
+  proxy: {status:'checking', info:null, error:null},
+
+  authMethod: 'token',
+  token: saved.token || '',
+  login: saved.login || '',
+  password: '',
+  remember: saved.remember !== false,
+  authHeader: saved.token ? 'Bearer ' + saved.token : '',
+  connecting: false,
+  connectError: null,
+  connected: false,
+  editConn: false,
+  employee: null,
+
+  orgList: [], orgHref: saved.orgHref || null,
+  stores: [], storeHref: saved.storeHref || null,
+  agentQuery: saved.agentQuery || CONFIG.DEFAULT_AGENT,
+  agents: [], agentHref: saved.agentHref || null,
+  agentSearching: false, agentError: null,
+  qtyAttr: null, qtyAttrError: null,
+
+  documentMoment: '',
+  checkDuplicates: saved.checkDuplicates !== false,
+
+  files: [],
+  expanded: new Set(),
+  mapping: {article: null, barcode: null},
+  mapEditing: false,
+
+  busy: false,
+  progress: null, // {label, done, total}
+  cache: {barcode: new Map(), article: new Map()},
+};
+let fileSeq = 0;
+
+function loadSaved(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; }catch(e){ return {}; }
+}
+function persist(){
+  const data = {
+    theme: state.theme,
+    proxyUrl: state.proxyUrl !== CONFIG.PROXY_URL ? state.proxyUrl : undefined,
+    remember: state.remember,
+    token: state.remember ? (state.token || undefined) : undefined,
+    login: state.login || undefined,
+    orgHref: state.orgHref, storeHref: state.storeHref,
+    agentQuery: state.agentQuery, agentHref: state.agentHref,
+    checkDuplicates: state.checkDuplicates,
+  };
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch(e){}
+}
+
+/* ============================================================
+   УТИЛИТЫ
+   ============================================================ */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s ?? '').toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim();
+const plural = (n, one, few, many) => { const a = Math.abs(n)%100, b = a%10; return a>10&&a<20 ? many : b===1 ? one : b>=2&&b<=4 ? few : many; };
+const fmtMoney = k => (k/100).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' ₽';
+const colLetter = i => { let s='', n=i+1; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s; };
+const b64 = s => btoa(unescape(encodeURIComponent(s)));
+const escFilter = v => String(v).replace(/\\/g,'\\\\').replace(/;/g,'\\;');
+const orderLink = id => MS_APP + '#customerorder/edit?id=' + encodeURIComponent(id);
+function chunk(arr, n){ const out=[]; for(let i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; }
+function nowLocal(){ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,16); }
+function toMsMoment(v){ if(!v) return undefined; const [d,t]=v.split('T'); if(!d||!t) return undefined; return d+' '+(t.length===5?t+':00':t); }
+function fmtMsDate(s){ if(!s) return ''; const d=new Date(String(s).replace(' ','T')); return isNaN(d) ? s : d.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function cellStr(v){
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : String(v);
+  if (v instanceof Date) return v.toISOString();
+  return String(v).trim();
+}
+
+function toast(msg){
+  const box = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  box.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+const ICON = {
+  logo:'<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h12l-3.5-3.5M16 8l-3.5 3.5M20 16H8l3.5 3.5M8 16l3.5-3.5"/></svg>',
+  sun:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  moon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
+  auto:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>',
+  upload:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3"/></svg>',
+  chev:'<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  ext:'<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+};
+
+/* ============================================================
+   API (через прокси на своём домене)
+   ============================================================ */
+let lastReqAt = 0;
+async function gate(){
+  const wait = lastReqAt + CONFIG.REQUEST_GAP_MS - Date.now();
+  if (wait > 0) await sleep(wait);
+  lastReqAt = Date.now();
+}
+function mkErr(kind, message, extra){ const e = new Error(message); e.kind = kind; Object.assign(e, extra||{}); return e; }
+function isSameOriginBase(base){ return !/^https?:\/\//i.test(base) || base.startsWith(location.origin); }
+const isQueryStyle = base => /\.php(\?.*)?$/i.test(base) || /\/api\/ms\/?$/i.test(base);
+function buildUrl(path){
+  const base = state.proxyUrl.trim();
+  if (isQueryStyle(base)) return base + (base.includes('?') ? '&' : '?') + 'path=' + encodeURIComponent(path);
+  return base.replace(/\/+$/,'') + path;
+}
+
+async function apiFetch(path, opts = {}){
+  const method = opts.method || 'GET';
+  const auth = opts.auth || state.authHeader;
+  const base = state.proxyUrl.trim();
+  const headers = {'Accept':'application/json;charset=utf-8'};
+  if (auth) headers[isSameOriginBase(base) ? 'X-Ms-Authorization' : 'Authorization'] = auth;
+  if (opts.body) headers['Content-Type'] = 'application/json';
+  const url = buildUrl(path);
+
+  for (let attempt = 0; ; attempt++){
+    await gate();
+    let res;
+    try{
+      res = await fetch(url, {method, headers, body: opts.body ? JSON.stringify(opts.body) : undefined, cache:'no-store', credentials:'same-origin'});
+    }catch(e){
+      if (method === 'GET' && attempt < 2){ await sleep(700 * (attempt+1)); continue; }
+      throw mkErr('network', isSameOriginBase(base)
+        ? 'Нет связи с сервером сайта. Проверьте интернет и повторите.'
+        : 'Не удалось обратиться к прокси «' + base + '». Проверьте интернет или адрес прокси в настройках (пустое поле вернёт адрес по умолчанию).');
+    }
+    if (res.status === 429 && attempt < 6){
+      const ra = parseInt(res.headers.get('x-lognex-retry-after') || '0', 10);
+      await sleep(Math.max(ra, 900 * (attempt+1)));
+      continue;
+    }
+    if ((res.status === 500 || res.status === 503 || res.status === 504) && method === 'GET' && attempt < 2){
+      await sleep(1200 * (attempt+1)); continue;
+    }
+    const text = await res.text();
+    let json = null;
+    if (text){ try{ json = JSON.parse(text); }catch(e){ json = undefined; } }
+    if (json === undefined){
+      if (/^\s*<\?php/.test(text)) throw mkErr('proxy', 'PHP на хостинге не выполняется — сервер отдал исходный код ms-proxy.php. Включите PHP для сайта или используйте вариант с nginx.');
+      if (res.status === 404 || /^\s*<(!doctype|html)/i.test(text)) throw mkErr('proxy', 'Прокси не найден: «' + base + '» (404). Проверьте, что на сервере развёрнут прокси (/api/ms или ms-proxy.php).');
+      throw mkErr('proxy', 'Сервер вернул неожиданный ответ (HTTP ' + res.status + '). Проверьте ms-proxy.php на хостинге.');
+    }
+    if (!res.ok){
+      const e0 = json && json.errors && json.errors[0];
+      const fromProxy = !!(e0 && e0.proxy);
+      let msg = e0 ? (e0.error || e0.error_message || ('HTTP ' + res.status)) : ('HTTP ' + res.status);
+      if (!fromProxy && res.status === 401) msg = 'МойСклад не принял токен или логин/пароль (401).';
+      else if (!fromProxy && res.status === 403) msg = 'Недостаточно прав в МойСклад: ' + msg;
+      throw mkErr(fromProxy ? 'proxy' : 'api', msg, {status: res.status, code: e0 && e0.code});
+    }
+    return json;
+  }
+}
+
+async function pingProxy(){
+  state.proxy = {status:'checking', info:null, error:null};
+  update();
+  if (location.protocol === 'file:'){
+    state.proxy = {status:'fail', error:'Страница открыта как файл с диска — прокси не работает. Откройте её с сайта: https://homeresurs.github.io/wb-moysklad/'};
+    update(); return;
+  }
+  const base = state.proxyUrl.trim();
+  if (/api\.moysklad\.ru/i.test(base)){
+    state.proxy = {status:'fail', error:'Указан прямой адрес МойСклад — из браузера он заблокирован CORS. Очистите поле «Адрес прокси», чтобы вернуть адрес по умолчанию'};
+    update(); return;
+  }
+  const url = isQueryStyle(base) ? base + (base.includes('?')?'&':'?') + 'ping=1' : base.replace(/\/+$/,'') + '/ping';
+  try{
+    const res = await fetch(url, {cache:'no-store', credentials:'same-origin'});
+    const text = await res.text();
+    if (/^\s*<\?php/.test(text)) throw new Error('PHP на хостинге не выполняется — включите PHP для сайта.');
+    let j; try{ j = JSON.parse(text); }catch(e){
+      if (res.status === 404 || /^\s*</.test(text)) throw new Error('По адресу «' + base + '» нет прокси. Проверьте, что на сервере развёрнут прокси (/api/ms или ms-proxy.php).');
+      throw new Error('Прокси ответил не JSON (HTTP ' + res.status + ').');
+    }
+    if (!j.ok) throw new Error('Прокси ответил ошибкой.');
+    if (j.proxy === 'php' && j.curl === false) state.proxy = {status:'ok', info:j, error:null, warn:'На хостинге нет PHP-curl — работает запасной режим.'};
+    else state.proxy = {status:'ok', info:j, error:null};
+  }catch(e){
+    state.proxy = {status:'fail', info:null, error: e.message || 'Прокси недоступен.'};
+  }
+  update();
+}
+
+/* ============================================================
+   ПОДКЛЮЧЕНИЕ К МОЙСКЛАД
+   ============================================================ */
+function currentOrg(){ return state.orgList.find(o => o.meta.href === state.orgHref) || null; }
+function currentStore(){ return state.stores.find(o => o.meta.href === state.storeHref) || null; }
+function currentAgent(){ return state.agents.find(o => o.meta.href === state.agentHref) || null; }
+function isReady(){ return state.connected && !!currentOrg() && !!currentAgent() && !!currentStore(); }
+
+async function connect(){
+  if (state.connecting) return;
+  state.connecting = true; state.connectError = null;
+  update();
+  try{
+    if (state.authMethod === 'password'){
+      if (!state.login || !state.password) throw mkErr('ui','Введите логин и пароль.');
+      const basic = 'Basic ' + b64(state.login + ':' + state.password);
+      try{
+        const t = await apiFetch('/security/token', {method:'POST', auth: basic});
+        if (!t || !t.access_token) throw new Error('no token');
+        state.token = t.access_token;
+        state.authHeader = 'Bearer ' + t.access_token;
+      }catch(e){
+        if (e.kind === 'network' || e.kind === 'proxy' || e.status === 401) throw e;
+        state.authHeader = basic; // токен выпустить не удалось — работаем по паролю в этой вкладке
+        state.token = '';
+      }
+      state.password = '';
+    } else {
+      const tok = state.token.trim().replace(/^Bearer\s+/i,'');
+      if (!tok) throw mkErr('ui','Вставьте токен доступа.');
+      state.token = tok;
+      state.authHeader = 'Bearer ' + tok;
+    }
+
+    const [orgs, stores] = [await apiFetch('/entity/organization?limit=100'), await apiFetch('/entity/store?limit=100')];
+    state.orgList = (orgs && orgs.rows) || [];
+    if (!state.orgList.length) throw mkErr('api','В аккаунте МойСклад нет ни одной организации.');
+    if (!currentOrg()) state.orgHref = state.orgList[0].meta.href;
+
+    state.stores = ((stores && stores.rows) || []).filter(s => !s.archived);
+    if (!currentStore()){
+      const q = norm(CONFIG.DEFAULT_STORE);
+      const s = state.stores.find(s => norm(s.name) === q) || state.stores.find(s => norm(s.name).includes(q)) || state.stores[0];
+      state.storeHref = s ? s.meta.href : null;
+    }
+    try{ state.employee = await apiFetch('/context/employee'); }catch(e){ state.employee = null; }
+
+    state.connected = true;
+    state.editConn = false;
+    state.connecting = false;
+    persist();
+    update();
+    await Promise.all([searchAgent(true), findQtyAttr()]);
+  }catch(e){
+    state.connecting = false;
+    state.connected = false;
+    state.connectError = e.message;
+    if (e.status === 401){ state.token = ''; state.authHeader = ''; persist(); }
+    update();
+  }
+}
+
+function disconnect(){
+  Object.assign(state, {connected:false, token:'', authHeader:'', password:'', orgList:[], stores:[], agents:[], qtyAttr:null, qtyAttrError:null, employee:null, editConn:false, connectError:null});
+  persist(); update();
+  toast('Отключено. Токен удалён из этого браузера.');
+}
+
+async function searchAgent(keepSaved){
+  const q = state.agentQuery.trim();
+  if (!q) return;
+  state.agentSearching = true; state.agentError = null;
+  update('params');
+  try{
+    const res = await apiFetch('/entity/counterparty?search=' + encodeURIComponent(q) + '&limit=20');
+    const rows = (res && res.rows) || [];
+    state.agents = rows;
+    const savedOne = keepSaved && rows.find(r => r.meta.href === state.agentHref);
+    const exact = rows.find(r => norm(r.name) === norm(q));
+    const pick = savedOne || exact || rows[0] || null;
+    state.agentHref = pick ? pick.meta.href : null;
+    if (!pick) state.agentError = 'Контрагент «' + q + '» не найден.';
+    persist();
+  }catch(e){ state.agentError = e.message; }
+  state.agentSearching = false;
+  update();
+}
+
+async function findQtyAttr(){
+  try{
+    const res = await apiFetch('/entity/customerorder/metadata/attributes?limit=100');
+    const rows = (res && res.rows) || [];
+    const a = rows.find(x => norm(x.name) === norm(CONFIG.QTY_ATTRIBUTE_NAME));
+    state.qtyAttr = a || null;
+    state.qtyAttrError = a ? null : 'Нет доп. поля «' + CONFIG.QTY_ATTRIBUTE_NAME + '» у заказа покупателя — количество не будет записано в поле.';
+  }catch(e){ state.qtyAttr = null; state.qtyAttrError = e.message; }
+  update('params');
+}
+
+function qtyAttrValue(total){
+  const t = state.qtyAttr && state.qtyAttr.type;
+  if (t === 'string' || t === 'text') return String(total);
+  return total;
+}
+
+/* ============================================================
+   ЧТЕНИЕ EXCEL
+   ============================================================ */
+function handleFiles(list){
+  const arr = Array.from(list || []);
+  if (!arr.length) return;
+  if (typeof XLSX === 'undefined'){ toast('Не загрузилась библиотека чтения Excel (vendor/xlsx.full.min.js).'); return; }
+  for (const file of arr){
+    if (!/\.(xlsx|xls|xlsm|csv)$/i.test(file.name)){ toast('Пропущен «' + file.name + '» — это не Excel.'); continue; }
+    if (state.files.some(f => f.fileName === file.name && f.size === file.size)){ toast('«' + file.name + '» уже добавлен.'); continue; }
+    const f = {
+      id: ++fileSeq, fileName: file.name, size: file.size,
+      workbook: null, sheetNames: [], sheetName: null,
+      rows: [], rowOffset: 0, headerRow: -1, headers: [], colCount: 0,
+      auto: {article: null, barcode: null, qty: null}, autoFound: false,
+      pickList: '', lines: [],
+      phase: 'loading', error: null, order: null, duplicate: null, progressDone: 0,
+    };
+    state.files.push(f);
+    const reader = new FileReader();
+    reader.onload = e => {
+      try{
+        f.workbook = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
+        f.sheetNames = f.workbook.SheetNames;
+        loadSheet(f, pickSheet(f.workbook));
+      }catch(err){
+        f.phase = 'error'; f.error = 'Не удалось прочитать файл: ' + err.message;
+      }
+      update();
+    };
+    reader.onerror = () => { f.phase = 'error'; f.error = 'Не удалось прочитать файл.'; update(); };
+    reader.readAsArrayBuffer(file);
+  }
+  update();
+}
+
+function pickSheet(wb){
+  // берём первый лист, где есть заголовок «Баркод»
+  for (const name of wb.SheetNames){
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1, raw:true, defval:'', blankrows:true});
+    if (detectHeader(rows).row >= 0) return name;
+  }
+  return wb.SheetNames[0];
+}
+
+function detectHeader(rows){
+  const lim = Math.min(rows.length, 40);
+  for (let i = 0; i < lim; i++){
+    const r = (rows[i] || []).map(c => norm(cellStr(c)));
+    const b = r.findIndex(c => /^(баркод|штрих-?код|штрихкод|barcode|ean)/.test(c));
+    if (b < 0) continue;
+    let a = r.findIndex(c => /^артикул продавца/.test(c));
+    if (a < 0) a = r.findIndex(c => /^(артикул|арт\.|article|sku)/.test(c) && !/(wb|вб|маркетплейс)/.test(c));
+    if (a < 0) continue;
+    let q = r.findIndex(c => /^(количество|кол-во|кол\.)$/.test(c));
+    return {row: i, article: a, barcode: b, qty: q >= 0 ? q : null};
+  }
+  return {row: -1};
+}
+
+function detectPickList(rows, fileName, headerRow){
+  const lim = headerRow >= 0 ? headerRow : Math.min(rows.length, 6);
+  for (let i = 0; i < lim; i++){
+    const r = rows[i] || [];
+    for (let j = 0; j < r.length; j++){
+      const c = cellStr(r[j]);
+      if (/лист\s+подбора/i.test(c)){
+        if (/\d/.test(c)) return c.replace(/\s+/g,' ');
+        const next = r.slice(j+1).map(cellStr).find(Boolean);
+        if (next) return (c + ' ' + next).replace(/\s+/g,' ');
+      }
+    }
+  }
+  for (let i = 0; i < lim; i++){
+    for (const cell of (rows[i] || [])){
+      const m = cellStr(cell).match(/WB-GI-\d+/i);
+      if (m) return 'Лист подбора ' + m[0].toUpperCase();
+    }
+  }
+  const m = fileName.match(/WB-GI-\d+/i);
+  if (m) return 'Лист подбора ' + m[0].toUpperCase();
+  return '';
+}
+
+function loadSheet(f, name){
+  f.sheetName = name;
+  const ws = f.workbook.Sheets[name];
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:'', blankrows:true});
+  let offset = 0;
+  try{ if (ws['!ref']) offset = XLSX.utils.decode_range(ws['!ref']).s.r; }catch(e){}
+  f.rows = rows; f.rowOffset = offset;
+  f.colCount = rows.reduce((m, r) => Math.max(m, (r || []).length), 0);
+  const h = detectHeader(rows);
+  if (h.row >= 0){
+    f.headerRow = h.row; f.autoFound = true;
+    f.auto = {article: h.article, barcode: h.barcode, qty: h.qty};
+    f.headers = (rows[h.row] || []).map(cellStr);
+  } else {
+    f.headerRow = -1; f.autoFound = false;
+    f.auto = {article: CONFIG.DEFAULT_COLUMNS.article, barcode: CONFIG.DEFAULT_COLUMNS.barcode, qty: null};
+    f.headers = [];
+  }
+  f.pickList = detectPickList(rows, f.fileName, f.headerRow);
+  buildLines(f);
+}
+
+function effectiveCols(f){
+  const m = state.mapping;
+  if (m.article !== null && m.barcode !== null) return {article: m.article, barcode: m.barcode, qty: null};
+  return f.auto;
+}
+
+function buildLines(f){
+  const cols = effectiveCols(f);
+  const start = f.headerRow >= 0 ? f.headerRow + 1 : 0;
+  const lines = [];
+  for (let i = start; i < f.rows.length; i++){
+    const r = f.rows[i] || [];
+    const article = cellStr(r[cols.article]);
+    const barcodeRaw = cellStr(r[cols.barcode]);
+    if (!article && !barcodeRaw) continue;
+    const barcodes = barcodeRaw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+    const hasDigits = barcodes.some(b => /^\d{5,}$/.test(b));
+    // строка-заголовок / служебная строка
+    if (!hasDigits && (/^(баркод|штрих)/i.test(barcodeRaw) || /^артикул/i.test(article))) continue;
+    if (f.headerRow < 0 && !hasDigits && !article) continue;
+    let qty = 1;
+    if (cols.qty !== null && cols.qty !== undefined){
+      const q = parseFloat(String(r[cols.qty]).replace(',', '.'));
+      if (q > 0) qty = q;
+    }
+    lines.push({rowNum: i + f.rowOffset + 1, article, barcodes, barcodeRaw, qty, product: null, status: 'pending', message: ''});
+  }
+  f.lines = lines;
+  f.phase = 'ready'; f.error = null; f.order = null; f.duplicate = null; f.progressDone = 0;
+}
+
+function rebuildAll(){
+  state.files.forEach(f => { if (f.workbook && f.phase !== 'created') buildLines(f); });
+}
+
+/* ============================================================
+   ПОИСК ТОВАРОВ (пакетно + кэш)
+   ============================================================ */
+function indexProducts(rows){
+  for (const p of rows){
+    for (const b of (p.barcodes || [])){
+      for (const v of Object.values(b)) if (v) state.cache.barcode.set(String(v), p);
+    }
+    if (p.article) state.cache.article.set(norm(p.article), p);
+  }
+}
+
+async function lookupMany(entity, field, values, onStep){
+  const cacheMap = field === 'barcode' ? state.cache.barcode : state.cache.article;
+  const key = v => field === 'barcode' ? v : norm(v);
+  for (const part of chunk(values, CONFIG.BATCH_SIZE)){
+    let rows = null;
+    const filter = part.map(v => field + '=' + escFilter(v)).join(';');
+    try{
+      const res = await apiFetch('/entity/' + entity + '?filter=' + encodeURIComponent(filter) + '&limit=100');
+      rows = (res && res.rows) || [];
+    }catch(e){ if (e.kind !== 'api') throw e; rows = null; }
+    if (rows === null || (rows.length === 0 && part.length > 1)){
+      // запасной путь — по одному
+      for (const v of part){
+        try{
+          const res = await apiFetch('/entity/' + entity + '?filter=' + encodeURIComponent(field + '=' + escFilter(v)) + '&limit=5');
+          const r = (res && res.rows) || [];
+          indexProducts(r);
+          if (r.length && field === 'article' && !cacheMap.has(key(v))) cacheMap.set(key(v), r[0]);
+        }catch(e){ if (e.kind !== 'api') throw e; }
+        if (!cacheMap.has(key(v))) cacheMap.set(key(v), null);
+        onStep(1);
+      }
+    } else {
+      indexProducts(rows);
+      for (const v of part) if (!cacheMap.has(key(v))) cacheMap.set(key(v), null);
+      onStep(part.length);
+    }
+  }
+}
+
+function resolveLine(l){
+  for (const b of l.barcodes){ const p = state.cache.barcode.get(b); if (p) return p; }
+  if (l.article){ const p = state.cache.article.get(norm(l.article)); if (p) return p; }
+  return null;
+}
+
+async function checkFiles(files){
+  const targets = files.filter(f => f.phase === 'ready' || f.phase === 'checked' || (f.phase === 'error' && f.lines.length));
+  if (!targets.length) return;
+  targets.forEach(f => { f.phase = 'checking'; f.error = null; });
+  const allLines = targets.flatMap(f => f.lines);
+  // повторная проверка: забываем «не найдено», чтобы переспросить МойСклад
+  for (const l of allLines){
+    for (const b of l.barcodes) if (state.cache.barcode.get(b) === null) state.cache.barcode.delete(b);
+    if (l.article && state.cache.article.get(norm(l.article)) === null) state.cache.article.delete(norm(l.article));
+  }
+
+  const needBarcodes = [...new Set(allLines.flatMap(l => l.barcodes))].filter(b => !state.cache.barcode.has(b));
+  state.progress = {label:'Поиск товаров по штрихкодам', done:0, total: needBarcodes.length || 1};
+  update('files','hdr');
+  try{
+    if (needBarcodes.length){
+      await lookupMany('product', 'barcode', needBarcodes, n => { state.progress.done += n; update('files'); });
+    }
+    // по артикулу — для строк, не найденных по штрихкоду
+    const needArticles = [...new Set(allLines.filter(l => !resolveLine(l) && l.article).map(l => l.article))]
+      .filter(a => !state.cache.article.has(norm(a)));
+    if (needArticles.length){
+      state.progress = {label:'Поиск по артикулам', done:0, total:needArticles.length};
+      update('files');
+      await lookupMany('product', 'article', needArticles, n => { state.progress.done += n; update('files'); });
+    }
+    // модификации и комплекты — через ассортимент
+    const leftovers = [...new Set(allLines.filter(l => !resolveLine(l)).flatMap(l => l.barcodes))]
+      .filter(b => /^\d{5,}$/.test(b) && !state.cache.barcode.get(b)).slice(0, 60);
+    if (leftovers.length){
+      state.progress = {label:'Поиск среди модификаций и комплектов', done:0, total:leftovers.length};
+      update('files');
+      for (const b of leftovers){
+        try{
+          const res = await apiFetch('/entity/assortment?filter=' + encodeURIComponent('barcode=' + escFilter(b)) + '&limit=5');
+          const rows = (res && res.rows) || [];
+          indexProducts(rows);
+          if (rows.length && !state.cache.barcode.get(b)) state.cache.barcode.set(b, rows[0]);
+        }catch(e){ if (e.kind !== 'api') throw e; }
+        state.progress.done++; update('files');
+      }
+    }
+    for (const l of allLines){
+      const p = resolveLine(l);
+      l.product = p;
+      l.status = p ? 'ok' : 'miss';
+      l.message = p ? 'найдено' : 'нет в МойСклад';
+    }
+    targets.forEach(f => { f.phase = 'checked'; });
+  }catch(e){
+    targets.forEach(f => { if (f.phase === 'checking'){ f.phase = 'error'; f.error = e.message; } });
+    toast('Проверка прервана: ' + e.message);
+  }
+  state.progress = null;
+  update();
+}
+
+function aggregate(f){
+  const map = new Map();
+  for (const l of f.lines){
+    if (l.status !== 'ok') continue;
+    const k = l.product.meta.href;
+    if (!map.has(k)) map.set(k, {product: l.product, qty: 0, price: (l.product.buyPrice && typeof l.product.buyPrice.value === 'number') ? l.product.buyPrice.value : 0});
+    map.get(k).qty += l.qty;
+  }
+  return [...map.values()];
+}
+
+/* ============================================================
+   СОЗДАНИЕ ЗАКАЗОВ
+   ============================================================ */
+async function createOrder(f, force){
+  const positions = aggregate(f);
+  if (!positions.length){ f.phase = 'checked'; return; }
+  f.phase = 'creating'; f.error = null;
+  update('files');
+  try{
+    if (!force && state.checkDuplicates && f.pickList){
+      try{
+        const r = await apiFetch('/entity/customerorder?filter=' + encodeURIComponent('description=' + escFilter(f.pickList)) + '&limit=5');
+        const dup = ((r && r.rows) || []).find(o => norm(o.description) === norm(f.pickList));
+        if (dup){ f.phase = 'duplicate'; f.duplicate = dup; update(); return; }
+      }catch(e){ if (e.kind !== 'api') throw e; }
+    }
+    const total = positions.reduce((s, p) => s + p.qty, 0);
+    const body = {
+      organization: {meta: currentOrg().meta},
+      agent: {meta: currentAgent().meta},
+      store: {meta: currentStore().meta},
+      positions: positions.map(p => ({quantity: p.qty, price: p.price, assortment: {meta: p.product.meta}})),
+    };
+    const moment = toMsMoment(state.documentMoment);
+    if (moment) body.moment = moment;
+    if (f.pickList) body.description = f.pickList;
+    if (state.qtyAttr) body.attributes = [{meta: state.qtyAttr.meta, value: qtyAttrValue(total)}];
+    const res = await apiFetch('/entity/customerorder', {method:'POST', body});
+    f.order = res; f.phase = 'created'; f.duplicate = null;
+  }catch(e){
+    f.phase = 'error'; f.error = e.message;
+  }
+  update();
+}
+
+async function runAll(createToo){
+  if (state.busy) return;
+  if (createToo && !isReady()){ toast('Сначала подключитесь к МойСклад и выберите контрагента и склад.'); return; }
+  state.busy = true; update();
+  try{
+    await checkFiles(state.files);
+    if (createToo){
+      const queue = state.files.filter(f => f.phase === 'checked' && aggregate(f).length);
+      let i = 0;
+      for (const f of queue){
+        state.progress = {label:'Создание заказов', done:i, total:queue.length};
+        update('files');
+        await createOrder(f, false);
+        i++;
+      }
+      state.progress = null;
+      const created = state.files.filter(f => f.phase === 'created').length;
+      const dups = state.files.filter(f => f.phase === 'duplicate').length;
+      toast('Готово: создано ' + created + ' ' + plural(created,'заказ','заказа','заказов') + (dups ? ', пропущено дублей: ' + dups : ''));
+    }
+  }finally{
+    state.busy = false; state.progress = null; update();
+  }
+}
+
+async function runOne(f, force){
+  if (state.busy || !f) return;
+  if (!isReady()){ toast('Сначала подключитесь к МойСклад.'); return; }
+  state.busy = true; update();
+  try{
+    if (f.phase !== 'duplicate' || !force) await checkFiles([f]);
+    if (f.phase === 'checked' || f.phase === 'duplicate' || f.phase === 'error') await createOrder(f, !!force);
+  }finally{ state.busy = false; update(); }
+}
+
+/* ============================================================
+   ОТЧЁТЫ
+   ============================================================ */
+function missingList(){
+  const map = new Map();
+  for (const f of state.files){
+    for (const l of f.lines){
+      if (l.status !== 'miss') continue;
+      const k = l.barcodeRaw + '|' + l.article;
+      if (!map.has(k)) map.set(k, {barcode: l.barcodeRaw, article: l.article, qty: 0, files: new Set()});
+      const m = map.get(k); m.qty += l.qty; m.files.add(f.pickList || f.fileName);
+    }
+  }
+  return [...map.values()].sort((a,b) => b.qty - a.qty);
+}
+
+function downloadCsv(name, rows){
+  const csv = '﻿' + rows.map(r => r.map(v => '"' + String(v ?? '').replace(/"/g,'""') + '"').join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+function downloadReport(){
+  const rows = [['Файл','Лист подбора','Строка Excel','Баркод','Артикул','Кол-во','Товар в МойСклад','Статус строки','Заказ','Статус файла']];
+  for (const f of state.files){
+    const orderName = f.order ? f.order.name : (f.duplicate ? f.duplicate.name + ' (уже был)' : '');
+    for (const l of f.lines){
+      rows.push([f.fileName, f.pickList, l.rowNum, l.barcodeRaw, l.article, l.qty, l.product ? l.product.name : '', l.status === 'ok' ? 'найдено' : l.status === 'miss' ? 'нет в МойСклад' : 'не проверено', orderName, phaseText(f)]);
+    }
+  }
+  const d = new Date();
+  downloadCsv('wb-moysklad-' + d.toISOString().slice(0,10) + '.csv', rows);
+}
+
+function phaseText(f){
+  return {loading:'загрузка', ready:'не проверен', checking:'проверка', checked:'проверен', creating:'создание', created:'заказ создан', duplicate:'дубль — пропущен', error:'ошибка'}[f.phase] || f.phase;
+}
+
+/* ============================================================
+   РЕНДЕР
+   ============================================================ */
+const lastHtml = {};
+function setHTML(id, html){
+  const el = document.getElementById(id);
+  if (!el || lastHtml[id] === html) return;
+  const active = document.activeElement;
+  const keep = active && active.id && el.contains(active) ? {id: active.id, s: active.selectionStart, e: active.selectionEnd} : null;
+  el.innerHTML = html;
+  lastHtml[id] = html;
+  if (keep){
+    const n = document.getElementById(keep.id);
+    if (n){ n.focus(); try{ if (keep.s !== null && keep.s !== undefined) n.setSelectionRange(keep.s, keep.e); }catch(e){} }
+  }
+}
+
+let pending = new Set(), rafId = 0;
+function update(...parts){
+  (parts.length ? parts : ['hdr','conn','params','files','summary']).forEach(p => pending.add(p));
+  if (rafId) return;
+  rafId = requestAnimationFrame(() => {
+    rafId = 0;
+    const p = pending; pending = new Set();
+    if (p.has('hdr')) setHTML('hdr', renderHeader());
+    if (p.has('conn')) setHTML('conn', renderConn());
+    if (p.has('params')){ const el = document.getElementById('params'); el.classList.toggle('hidden', !state.connected); setHTML('params', state.connected ? renderParams() : ''); }
+    if (p.has('files')) setHTML('files', renderFiles());
+    if (p.has('summary') || p.has('files')){ const html = renderSummary(); document.getElementById('summary').classList.toggle('hidden', !html); setHTML('summary', html); }
+  });
+}
+
+function applyTheme(){
+  const r = document.documentElement;
+  if (state.theme === 'system') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', state.theme);
+}
+
+function renderHeader(){
+  let dot = 'err', text = 'МойСклад не подключён';
+  if (state.connecting){ dot = 'warn'; text = 'Подключение…'; }
+  else if (state.connected){
+    const org = currentOrg();
+    dot = isReady() ? 'ok' : 'warn';
+    text = 'МойСклад · ' + (org ? org.name : 'подключено');
+  } else if (state.proxy.status === 'fail'){ dot = 'err'; text = 'Прокси недоступен'; }
+  const themeIc = state.theme === 'dark' ? ICON.moon : state.theme === 'light' ? ICON.sun : ICON.auto;
+  const themeTitle = {system:'Тема: как в системе', light:'Тема: светлая', dark:'Тема: тёмная'}[state.theme];
+  return `
+    <div class="logo">${ICON.logo}</div>
+    <div class="title">
+      <h1>Импорт заказов WB → МойСклад</h1>
+      <p>Листы подбора FBS → заказы покупателя, по одному на файл</p>
+    </div>
+    <div class="spacer"></div>
+    <span class="chip" title="${esc(text)}"><span class="dot ${dot}"></span>${esc(text)}</span>
+    <button class="icon-btn" data-action="theme" title="${themeTitle}" aria-label="${themeTitle}">${themeIc}</button>
+  `;
+}
+
+function renderProxyLine(){
+  const p = state.proxy;
+  if (p.status === 'checking') return `<div class="status-line"><span class="spin" style="color:var(--text-3)"></span>Проверка сервера-прокси…</div>`;
+  if (p.status === 'ok') return `<div class="status-line"><span class="dot ok"></span>Сервер-прокси работает${p.info && p.info.proxy ? ' (' + esc(p.info.proxy) + ')' : ''}${p.warn ? ' · ' + esc(p.warn) : ''}</div>`;
+  return `<div class="alert alert-err" style="margin:0 0 12px"><span class="ic">!</span><div><b>Прокси недоступен.</b> ${esc(p.error)}
+    <div style="margin-top:6px"><button class="btn xs ghost" data-action="ping">Проверить ещё раз</button></div></div></div>`;
+}
+
+function renderConn(){
+  if (state.connected && !state.editConn){
+    const emp = state.employee;
+    return `
+      <div class="card-head"><span class="step-n done">✓</span><h2>МойСклад</h2>
+        <div class="right"><button class="btn xs ghost" data-action="edit-conn">Изменить</button></div></div>
+      <div class="card-body">
+        <div class="kv"><span class="k">Аккаунт</span><span class="v">${esc(emp ? (emp.fullName || emp.name || emp.uid) : 'подключено')}</span>${emp && emp.uid ? `<span class="muted mono">${esc(emp.uid)}</span>` : ''}</div>
+        ${renderProxyLine()}
+        <div class="status-line"><span class="dot ok"></span>${state.remember ? 'Токен сохранён в этом браузере' : 'Токен только до закрытия вкладки'}</div>
+      </div>`;
+  }
+  const canConnect = state.proxy.status !== 'fail' && (state.authMethod === 'token' ? !!state.token.trim() : (!!state.login && !!state.password));
+  return `
+    <div class="card-head"><span class="step-n">1</span><h2>Подключение к МойСклад</h2>
+      ${state.connected ? `<div class="right"><button class="btn xs ghost" data-action="cancel-edit">Отмена</button></div>` : ''}</div>
+    <div class="card-body">
+      ${renderProxyLine()}
+      <div class="seg" role="tablist">
+        <button class="${state.authMethod==='token'?'on':''}" data-action="auth" data-val="token">Токен</button>
+        <button class="${state.authMethod==='password'?'on':''}" data-action="auth" data-val="password">Логин и пароль</button>
+      </div>
+      ${state.authMethod === 'token' ? `
+        <div class="field">
+          <label class="label" for="in-token">Токен доступа</label>
+          <input type="password" id="in-token" data-bind="token" autocomplete="off" spellcheck="false" placeholder="Вставьте токен" value="${esc(state.token)}">
+          <p class="help">Создаётся в МойСклад в настройках, раздел «Токены». Сотруднику нужны права на просмотр товаров и создание заказов покупателя.</p>
+        </div>` : `
+        <div class="field"><label class="label" for="in-login">Логин</label>
+          <input type="text" id="in-login" data-bind="login" autocomplete="username" placeholder="admin@company" value="${esc(state.login)}"></div>
+        <div class="field"><label class="label" for="in-password">Пароль</label>
+          <input type="password" id="in-password" data-bind="password" autocomplete="current-password" placeholder="••••••••" value="${esc(state.password)}">
+          <p class="help">Пароль не сохраняется: по нему один раз выпускается токен.</p></div>`}
+      <div class="field"><label class="check"><input type="checkbox" data-bind="remember" ${state.remember?'checked':''}> Запомнить на этом компьютере</label></div>
+      ${state.connectError ? `<div class="alert alert-err"><span class="ic">!</span><div><b>Не удалось подключиться.</b> ${esc(state.connectError)}</div></div>` : ''}
+      <button class="btn block" data-action="connect" ${state.connecting || !canConnect ? 'disabled' : ''}>
+        ${state.connecting ? '<span class="spin"></span>Подключение…' : 'Подключиться'}</button>
+      ${state.connected ? `<button class="btn block link danger" style="margin-top:8px" data-action="disconnect">Отключиться и забыть токен</button>` : ''}
+      <details id="proxy-details" style="margin-top:14px" ${state.proxyOpen?'open':''}>
+        <summary class="muted" style="cursor:pointer;font-size:12.5px">Адрес прокси</summary>
+        <div class="field" style="margin-top:8px">
+          <div class="inline"><input type="text" id="in-proxy" data-bind="proxyUrl" value="${esc(state.proxyUrl)}" spellcheck="false">
+          <button class="btn sm ghost" data-action="ping">Проверить</button></div>
+          <p class="help">По умолчанию: <span class="mono">https://wb-moysklad-proxy.netlify.app/api/ms</span> · PHP-хостинг: <span class="mono">ms-proxy.php</span> · nginx: <span class="mono">/ms-api</span>. Пустое поле — адрес по умолчанию.</p>
+        </div>
+      </details>
+    </div>`;
+}
+
+function renderParams(){
+  const org = currentOrg(), store = currentStore();
+  return `
+    <div class="card-head"><span class="step-n ${isReady()?'done':''}">${isReady()?'✓':'2'}</span><h2>Параметры заказов</h2></div>
+    <div class="card-body">
+      <div class="field">
+        <label class="label" for="sel-org">Организация</label>
+        ${state.orgList.length > 1 ? `<select id="sel-org" data-bind="orgHref">${state.orgList.map(o => `<option value="${esc(o.meta.href)}" ${org && o.meta.href===org.meta.href?'selected':''}>${esc(o.name)}</option>`).join('')}</select>`
+          : `<div class="v" style="font-weight:600">${esc(org ? org.name : '—')}</div>`}
+      </div>
+      <div class="field">
+        <label class="label" for="in-agent">Контрагент</label>
+        <div class="inline">
+          <input type="text" id="in-agent" data-bind="agentQuery" value="${esc(state.agentQuery)}" placeholder="Название контрагента">
+          <button class="btn sm ghost" data-action="search-agent" ${state.agentSearching?'disabled':''}>${state.agentSearching ? '<span class="spin"></span>' : 'Найти'}</button>
+        </div>
+        ${state.agents.length > 1 ? `<select id="sel-agent" data-bind="agentHref" style="margin-top:8px">${state.agents.map(a => `<option value="${esc(a.meta.href)}" ${a.meta.href===state.agentHref?'selected':''}>${esc(a.name)}${a.inn ? ' · ИНН ' + esc(a.inn) : ''}</option>`).join('')}</select>` : ''}
+        ${currentAgent() ? `<p class="help" style="color:var(--ok)">✓ ${esc(currentAgent().name)}</p>` : ''}
+        ${state.agentError ? `<p class="help" style="color:var(--err)">${esc(state.agentError)}</p>` : ''}
+      </div>
+      <div class="field">
+        <label class="label" for="sel-store">Склад</label>
+        <select id="sel-store" data-bind="storeHref">
+          ${!store ? '<option value="">— выберите склад —</option>' : ''}
+          ${state.stores.map(s => `<option value="${esc(s.meta.href)}" ${store && s.meta.href===store.meta.href?'selected':''}>${esc(s.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="label" for="in-moment">Дата документа</label>
+        <div class="inline">
+          <input type="datetime-local" id="in-moment" data-bind="documentMoment" value="${esc(state.documentMoment)}">
+          <button class="btn sm ghost" data-action="moment-now" title="Подставить текущее время">Сейчас</button>
+        </div>
+        <p class="help">${state.documentMoment ? 'Будет проставлена во всех заказах. <a href="#" data-action="moment-clear">Сбросить</a>' : 'Пусто — МойСклад поставит время создания.'}</p>
+      </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" data-bind="checkDuplicates" ${state.checkDuplicates?'checked':''}> Не создавать повторно заказ с тем же листом подбора</label>
+      </div>
+      <div class="status-line">${state.qtyAttr ? `<span class="dot ok"></span>Поле «${esc(CONFIG.QTY_ATTRIBUTE_NAME)}» будет заполнено` : state.qtyAttrError ? `<span class="dot warn"></span><span>${esc(state.qtyAttrError)}</span>` : `<span class="spin" style="color:var(--text-3)"></span>Проверка доп. поля…`}</div>
+    </div>`;
+}
+
+function fileStats(f){
+  const total = f.lines.length;
+  const units = f.lines.reduce((s,l) => s + l.qty, 0);
+  const ok = f.lines.filter(l => l.status === 'ok').length;
+  const miss = f.lines.filter(l => l.status === 'miss').length;
+  const checked = f.lines.some(l => l.status !== 'pending');
+  const agg = checked ? aggregate(f) : [];
+  return {total, units, ok, miss, checked, positions: agg.length, aggUnits: agg.reduce((s,a)=>s+a.qty,0)};
+}
+
+function statusPill(f, st){
+  switch(f.phase){
+    case 'loading': return `<span class="pill"><span class="spin"></span>чтение</span>`;
+    case 'ready': return `<span class="pill">не проверен</span>`;
+    case 'checking': return `<span class="pill info"><span class="spin"></span>проверка</span>`;
+    case 'checked': return st.ok ? (st.miss ? `<span class="pill warn">готов · есть пропуски</span>` : `<span class="pill accent">готов к созданию</span>`) : `<span class="pill err">нет товаров</span>`;
+    case 'creating': return `<span class="pill info"><span class="spin"></span>создание</span>`;
+    case 'created': return `<span class="pill ok">✓ заказ <a href="${esc(orderLink(f.order.id))}" target="_blank" rel="noopener" data-stop>${esc(f.order.name || '')} ${ICON.ext}</a></span>`;
+    case 'duplicate': return `<span class="pill warn">уже есть · <a href="${esc(orderLink(f.duplicate.id))}" target="_blank" rel="noopener" data-stop>${esc(f.duplicate.name || '')} ${ICON.ext}</a></span>`;
+    case 'error': return `<span class="pill err" title="${esc(f.error)}">ошибка</span>`;
+  }
+  return '';
+}
+
+function renderMapping(){
+  const ready = state.files.filter(f => f.workbook);
+  if (!ready.length) return '';
+  const custom = state.mapping.article !== null && state.mapping.barcode !== null;
+  const ref = ready[0];
+  const cols = effectiveCols(ref);
+  const hdrName = i => (ref.headers[i] ? '«' + ref.headers[i] + '» ' : '') + '(' + colLetter(i) + ')';
+  const allAuto = ready.every(f => f.autoFound);
+  let text;
+  if (custom) text = `Колонки заданы вручную: артикул — <span class="tag">${colLetter(cols.article)}</span>, баркод — <span class="tag">${colLetter(cols.barcode)}</span>`;
+  else if (allAuto) text = `Колонки найдены по заголовкам: артикул — <span class="tag">${esc(hdrName(cols.article))}</span>, баркод — <span class="tag">${esc(hdrName(cols.barcode))}</span>`;
+  else text = `<span style="color:var(--warn)">В части файлов нет заголовков — взяты колонки по умолчанию: артикул <span class="tag">${colLetter(CONFIG.DEFAULT_COLUMNS.article)}</span>, баркод <span class="tag">${colLetter(CONFIG.DEFAULT_COLUMNS.barcode)}</span></span>`;
+  const opts = sel => Array.from({length: Math.max(ref.colCount, 10)}, (_, i) =>
+    `<option value="${i}" ${sel===i?'selected':''}>${colLetter(i)}${ref.headers[i] ? ' — ' + esc(ref.headers[i].slice(0,40)) : ''}</option>`).join('');
+  return `
+    <div class="mapping">${text}
+      <button class="btn xs link" data-action="map-toggle">${state.mapEditing ? 'Скрыть' : 'Изменить'}</button>
+      ${custom ? `<button class="btn xs link" data-action="map-reset">Авто</button>` : ''}
+    </div>
+    ${state.mapEditing ? `
+      <div class="map-edit">
+        <div><label class="label" for="map-article">Артикул</label><select id="map-article" data-map="article">${opts(cols.article)}</select></div>
+        <div><label class="label" for="map-barcode">Баркод</label><select id="map-barcode" data-map="barcode">${opts(cols.barcode)}</select></div>
+        <button class="btn sm" data-action="map-apply">Применить ко всем</button>
+      </div>` : ''}`;
+}
+
+function renderFiles(){
+  const n = state.files.length;
+  const busy = state.busy;
+  const head = `
+    <div class="card-head"><span class="step-n ${n && state.files.every(f => f.phase==='created'||f.phase==='duplicate')?'done':''}">${n && state.files.every(f => f.phase==='created'||f.phase==='duplicate')?'✓':'3'}</span><h2>Листы подбора WB</h2>
+      <span class="sub">${n ? n + ' ' + plural(n,'файл','файла','файлов') : 'Excel из кабинета WB → Сборочные задания'}</span>
+      ${n ? `<div class="right"><button class="btn xs ghost" data-action="clear" ${busy?'disabled':''}>Очистить</button></div>` : ''}
+    </div>`;
+  const prog = state.progress ? `
+    <div class="progress"><div class="pl"><span>${esc(state.progress.label)}</span><span class="mono">${state.progress.done} / ${state.progress.total}</span></div>
+      <div class="bar"><i style="width:${Math.min(100, state.progress.done / Math.max(1,state.progress.total) * 100)}%"></i></div></div>` : '';
+  const dz = `
+    <div class="dropzone ${n?'compact':''}" data-action="pick" role="button" tabindex="0">
+      <div class="dz-ic">${ICON.upload}</div>
+      <div><div class="t">${n ? 'Добавить файлы' : 'Перетащите файлы листов подбора сюда'}</div>
+      <div class="s">${n ? 'или перетащите на страницу' : 'или нажмите, чтобы выбрать · .xlsx / .xls · можно сразу несколько'}</div></div>
+    </div>`;
+
+  if (!n) return head + `<div class="card-body">${dz}</div>`;
+
+  const rows = state.files.map(f => {
+    const st = fileStats(f);
+    const open = state.expanded.has(f.id);
+    const canCreate = ['checked','error','duplicate','ready'].includes(f.phase) && (!st.checked || st.ok > 0) && f.lines.length;
+    let action = '';
+    if (f.phase === 'duplicate') action = `<button class="btn xs ghost" data-action="force" data-id="${f.id}" ${busy?'disabled':''}>Создать всё равно</button>`;
+    else if (f.phase === 'error' && f.lines.length) action = `<button class="btn xs ghost" data-action="one" data-id="${f.id}" ${busy||!isReady()?'disabled':''}>Повторить</button>`;
+    else if (canCreate && f.phase !== 'created') action = `<button class="btn xs ghost" data-action="one" data-id="${f.id}" ${busy||!isReady()?'disabled':''} title="Создать заказ только по этому файлу">Создать</button>`;
+    return `
+      <tr class="file-row ${open?'open':''}" data-action="toggle" data-id="${f.id}">
+        <td>
+          <div class="fname">${ICON.chev}<span>${esc(f.fileName)}</span></div>
+          ${f.pickList ? `<div class="fsub" title="${esc(f.pickList)}">${esc(f.pickList.replace(/^лист подбора\s*/i,'') || f.pickList)}</div>` : '<div class="fsub" style="color:var(--warn)" title="Комментарий к заказу будет пустым, проверка дублей не сработает">без № листа подбора</div>'}
+          ${f.sheetNames.length > 1 ? `<select class="sheet-sel" data-sheet="${f.id}" data-stop ${busy||f.phase==='created'?'disabled':''}>${f.sheetNames.map(s => `<option ${s===f.sheetName?'selected':''}>${esc(s)}</option>`).join('')}</select>` : ''}
+          ${f.phase === 'error' ? `<div class="fsub wrap" style="color:var(--err)">${esc(f.error)}</div>` : ''}
+        </td>
+        <td class="num">${st.total}</td>
+        <td class="num">${st.checked ? st.ok : '<span class="zero">—</span>'}</td>
+        <td class="num">${st.checked ? (st.miss ? `<span class="warnnum">${st.miss}</span>` : '<span class="zero">0</span>') : '<span class="zero">—</span>'}</td>
+        <td class="num">${st.checked ? st.positions + ' / ' + st.aggUnits : '<span class="zero">—</span>'}</td>
+        <td>${statusPill(f, st)}</td>
+        <td><div class="row-actions" data-stop>${action}
+          <button class="icon-btn" style="width:26px;height:26px" data-action="remove" data-id="${f.id}" title="Убрать файл" aria-label="Убрать файл" ${busy?'disabled':''}>${ICON.x}</button></div></td>
+      </tr>
+      ${open ? `<tr class="detail"><td colspan="7">${renderLines(f)}</td></tr>` : ''}`;
+  }).join('');
+
+  const tot = state.files.reduce((a, f) => { const s = fileStats(f); a.lines += s.total; a.checked = a.checked || s.checked; return a; }, {lines:0, checked:false});
+  const toCreate = state.files.filter(f => ['ready','checked','error'].includes(f.phase) && f.lines.length && (fileStats(f).checked ? fileStats(f).ok > 0 : true)).length;
+  const toCheck = state.files.filter(f => ['ready','checked','error'].includes(f.phase) && f.lines.length).length;
+
+  return head + prog + `
+    <div class="card-body" style="padding-bottom:12px">${dz}${renderMapping()}</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Файл · лист подбора</th><th class="num">Строк</th><th class="num">Найдено</th><th class="num">Нет в МС</th><th class="num">Поз. / шт</th><th>Статус</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <div class="toolbar">
+      <span class="muted" style="font-size:12.5px">${tot.lines} ${plural(tot.lines,'строка','строки','строк')} · одинаковые товары в файле объединяются в одну позицию</span>
+      <span class="grow"></span>
+      <button class="btn ghost" data-action="check" ${busy || !state.connected || !toCheck ? 'disabled' : ''}>Только проверить</button>
+      <button class="btn lg" data-action="run" ${busy || !isReady() || !toCreate ? 'disabled' : ''}>
+        ${busy ? '<span class="spin"></span>Работаю…' : `Проверить и создать ${toCreate ? toCreate + ' ' + plural(toCreate,'заказ','заказа','заказов') : 'заказы'}`}</button>
+    </div>
+    ${!state.connected ? `<div class="card-body" style="padding-top:0;background:var(--surface-2);border-radius:0 0 var(--radius) var(--radius)"><div class="alert alert-info"><span class="ic">i</span><div>Подключите МойСклад в блоке справа — после этого станут доступны проверка и создание заказов.</div></div></div>` : ''}`;
+}
+
+function renderLines(f){
+  if (!f.lines.length) return `<div class="empty">В файле не найдено строк с баркодом или артикулом. Проверьте выбор колонок.</div>`;
+  return `<div class="tbl-wrap"><table>
+    <thead><tr><th class="num">Стр.</th><th>Баркод</th><th>Артикул</th><th class="num">Шт</th><th>Товар в МойСклад</th><th class="num">Цена</th><th>Статус</th></tr></thead>
+    <tbody>${f.lines.map(l => `
+      <tr>
+        <td class="num mono muted">${l.rowNum}</td>
+        <td class="mono">${esc(l.barcodeRaw || '—')}</td>
+        <td class="mono">${esc(l.article || '—')}</td>
+        <td class="num">${l.qty}</td>
+        <td>${l.product ? esc(l.product.name) : '<span class="zero">—</span>'}</td>
+        <td class="num">${l.product ? fmtMoney((l.product.buyPrice && l.product.buyPrice.value) || 0) : ''}</td>
+        <td>${l.status === 'ok' ? '<span class="pill ok">найдено</span>' : l.status === 'miss' ? '<span class="pill err">нет в МойСклад</span>' : '<span class="pill">—</span>'}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+}
+
+function renderSummary(){
+  const checkedFiles = state.files.filter(f => f.lines.some(l => l.status !== 'pending'));
+  if (!checkedFiles.length) return '';
+  const all = state.files.flatMap(f => f.lines);
+  const ok = all.filter(l => l.status === 'ok').length;
+  const miss = missingList();
+  const missUnits = miss.reduce((s,m)=>s+m.qty,0);
+  const created = state.files.filter(f => f.phase === 'created');
+  const dups = state.files.filter(f => f.phase === 'duplicate').length;
+  const errs = state.files.filter(f => f.phase === 'error').length;
+  return `
+    <div class="card-head"><h2>Итог</h2>
+      <div class="right">
+        ${miss.length ? `<button class="btn xs ghost" data-action="copy-missing">Скопировать ненайденные</button>` : ''}
+        <button class="btn xs ghost" data-action="report">Скачать отчёт (CSV)</button>
+      </div></div>
+    <div class="card-body">
+      <div class="stats">
+        <div class="stat ok"><div class="n">${created.length}</div><div class="l">${plural(created.length,'заказ создан','заказа создано','заказов создано')}</div></div>
+        <div class="stat"><div class="n">${ok}</div><div class="l">строк найдено</div></div>
+        <div class="stat ${missUnits?'err':''}"><div class="n">${missUnits}</div><div class="l">шт не найдено</div></div>
+        <div class="stat ${dups?'warn':''}"><div class="n">${dups}</div><div class="l">дублей пропущено</div></div>
+        ${errs ? `<div class="stat err"><div class="n">${errs}</div><div class="l">с ошибкой</div></div>` : ''}
+      </div>
+      ${created.length ? `<div class="alert alert-ok" style="margin-top:14px"><span class="ic">✓</span><div>Созданы: ${created.map(f => `<a href="${esc(orderLink(f.order.id))}" target="_blank" rel="noopener">${esc(f.order.name)}</a>`).join(', ')}${created[0].order.moment ? ` · дата ${esc(fmtMsDate(created[0].order.moment))}` : ''}</div></div>` : ''}
+      ${miss.length ? `
+        <h3 style="font-size:13px;margin:16px 0 8px">Нет в МойСклад — ${miss.length} ${plural(miss.length,'товар','товара','товаров')} (не попали в заказы)</h3>
+        <div class="tbl-wrap" style="border:1px solid var(--border);border-radius:var(--radius-sm)"><table>
+          <thead><tr><th>Баркод</th><th>Артикул</th><th class="num">Шт</th><th>Листы подбора</th></tr></thead>
+          <tbody>${miss.map(m => `<tr><td class="mono">${esc(m.barcode || '—')}</td><td class="mono">${esc(m.article || '—')}</td><td class="num">${m.qty}</td><td class="muted" style="font-size:12px">${esc([...m.files].join(', '))}</td></tr>`).join('')}</tbody>
+        </table></div>
+        <p class="help">Заведите баркод у товара в МойСклад (или проверьте артикул) и нажмите «Повторить» — для файлов без заказа проверка пройдёт заново.</p>` : ''}
+    </div>`;
+}
+
+/* ============================================================
+   СОБЫТИЯ (делегирование — переживает перерисовку)
+   ============================================================ */
+document.addEventListener('click', e => {
+  const stop = e.target.closest('[data-stop]');
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  if (stop && el.dataset.action === 'toggle') return; // клик по ссылке/кнопке внутри строки
+  const a = el.dataset.action;
+  const id = el.dataset.id;
+  const f = id ? state.files.find(x => String(x.id) === id) : null;
+  switch(a){
+    case 'theme':
+      state.theme = {system:'light', light:'dark', dark:'system'}[state.theme];
+      applyTheme(); persist(); update('hdr'); break;
+    case 'ping': pingProxy(); break;
+    case 'auth': state.authMethod = el.dataset.val; state.connectError = null; update('conn'); break;
+    case 'connect': connect(); break;
+    case 'disconnect': disconnect(); break;
+    case 'edit-conn': state.editConn = true; update('conn'); break;
+    case 'cancel-edit': state.editConn = false; state.connectError = null; update('conn'); break;
+    case 'search-agent': searchAgent(false); break;
+    case 'moment-now': state.documentMoment = nowLocal(); update('params'); break;
+    case 'moment-clear': e.preventDefault(); state.documentMoment = ''; update('params'); break;
+    case 'pick': document.getElementById('file-input').click(); break;
+    case 'toggle': if (f){ state.expanded.has(f.id) ? state.expanded.delete(f.id) : state.expanded.add(f.id); update('files'); } break;
+    case 'remove': if (f && !state.busy){ state.files = state.files.filter(x => x !== f); state.expanded.delete(f.id); update(); } break;
+    case 'clear':
+      if (!state.busy && (!state.files.some(x => x.phase !== 'created' && x.phase !== 'duplicate') || confirmClear())){
+        state.files = []; state.expanded.clear(); state.mapping = {article:null, barcode:null}; state.mapEditing = false; update();
+      }
+      break;
+    case 'map-toggle': state.mapEditing = !state.mapEditing; update('files'); break;
+    case 'map-reset': state.mapping = {article:null, barcode:null}; state.mapEditing = false; rebuildAll(); update(); break;
+    case 'map-apply': {
+      const ar = document.getElementById('map-article'), bc = document.getElementById('map-barcode');
+      state.mapping = {article: parseInt(ar.value,10), barcode: parseInt(bc.value,10)};
+      state.mapEditing = false; rebuildAll(); update(); toast('Колонки применены ко всем файлам.');
+      break;
+    }
+    case 'check': runAll(false); break;
+    case 'run': runAll(true); break;
+    case 'one': runOne(f, false); break;
+    case 'force': runOne(f, true); break;
+    case 'report': downloadReport(); break;
+    case 'copy-missing': {
+      const text = ['Баркод\tАртикул\tШт'].concat(missingList().map(m => m.barcode + '\t' + m.article + '\t' + m.qty)).join('\n');
+      (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast('Список скопирован — можно вставить в Excel.'), () => toast('Не удалось скопировать.'));
+      break;
+    }
+  }
+});
+
+function confirmClear(){
+  // безопасное подтверждение без модальных окон браузера: второй клик в течение 3 с
+  if (confirmClear.armed && Date.now() - confirmClear.armed < 3000){ confirmClear.armed = 0; return true; }
+  confirmClear.armed = Date.now();
+  toast('Есть файлы без созданного заказа. Нажмите «Очистить» ещё раз, чтобы убрать всё.');
+  return false;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.matches('#in-token,#in-login,#in-password')) connect();
+  if (e.key === 'Enter' && e.target.matches('#in-agent')) searchAgent(false);
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.dropzone')){ e.preventDefault(); document.getElementById('file-input').click(); }
+});
+
+document.addEventListener('input', e => {
+  const b = e.target.dataset && e.target.dataset.bind;
+  if (!b || e.target.type === 'checkbox' || e.target.tagName === 'SELECT') return;
+  state[b] = e.target.value;
+  if (b === 'token' || b === 'login' || b === 'password'){
+    const btn = document.querySelector('[data-action="connect"]');
+    const can = state.proxy.status !== 'fail' && (state.authMethod === 'token' ? !!state.token.trim() : (!!state.login && !!state.password));
+    if (btn && !state.connecting) btn.disabled = !can;
+  }
+  if (b === 'proxyUrl'){ state.proxyUrl = e.target.value.trim() || CONFIG.PROXY_URL; persist(); }
+});
+
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'file-input'){ handleFiles(t.files); t.value = ''; return; }
+  if (t.dataset.sheet){
+    const f = state.files.find(x => String(x.id) === t.dataset.sheet);
+    if (f){ loadSheet(f, t.value); update(); }
+    return;
+  }
+  const b = t.dataset.bind;
+  if (!b) return;
+  if (t.type === 'checkbox'){ state[b] = t.checked; persist(); update(b === 'remember' ? 'conn' : 'params'); return; }
+  state[b] = t.value;
+  if (b === 'documentMoment') update('params');
+  if (['orgHref','storeHref','agentHref'].includes(b)){ persist(); update(); }
+  if (b === 'proxyUrl') pingProxy();
+});
+
+// drag & drop на всю страницу
+let dragDepth = 0;
+document.addEventListener('dragenter', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')){ dragDepth++; document.body.classList.add('dragging'); } });
+document.addEventListener('dragleave', () => { dragDepth = Math.max(0, dragDepth-1); if (!dragDepth) document.body.classList.remove('dragging'); });
+document.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+document.addEventListener('drop', e => {
+  if (!e.dataTransfer || !e.dataTransfer.files.length) return;
+  e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging');
+  handleFiles(e.dataTransfer.files);
+});
+
+document.addEventListener('toggle', e => { if (e.target.id === 'proxy-details') state.proxyOpen = e.target.open; }, true);
+
+window.addEventListener('beforeunload', e => { if (state.busy){ e.preventDefault(); e.returnValue = ''; } });
+
+/* ============================================================
+   СТАРТ
+   ============================================================ */
+applyTheme();
+update();
+pingProxy().then(() => { if (state.token && state.proxy.status === 'ok') connect(); });
+</script>
+</body>
+</html>

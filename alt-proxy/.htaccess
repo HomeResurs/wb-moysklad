@@ -1,0 +1,29 @@
+# Импорт заказов WB → МойСклад — настройки для Apache (Beget, Timeweb, REG.RU и др.)
+DirectoryIndex index.html
+
+# Передавать заголовок авторизации в PHP (на случай PHP-CGI/FastCGI)
+<IfModule mod_setenvif.c>
+  SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+  SetEnvIf X-Ms-Authorization "(.*)" HTTP_X_MS_AUTHORIZATION=$1
+</IfModule>
+
+# Не отдавать служебные файлы
+<FilesMatch "^(README\.md|nginx\.conf\.example)$">
+  Require all denied
+</FilesMatch>
+
+# Сжатие и кэш для статики
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType application/javascript "access plus 30 days"
+  ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "same-origin"
+  Header always set X-Frame-Options "SAMEORIGIN"
+</IfModule>
