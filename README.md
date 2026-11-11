@@ -58,7 +58,23 @@ netlify deploy --prod --site wb-moysklad-proxy
 Так как `netlify deploy` выкладывает и статику, инструмент открывается и по
 адресу `https://wb-moysklad-proxy.netlify.app/` — там прокси на том же домене.
 
-## Если прокси на Netlify перестал работать
+### Прокси — Cloudflare Workers (альтернатива Netlify)
+
+Та же функция, обёрнутая в Worker (`cloudflare/worker.mjs`, `wrangler.toml`).
+Бесплатно до 100 000 запросов в день.
+
+```bash
+npx wrangler login
+```
+
+```bash
+npx wrangler deploy
+```
+
+Адрес вида `https://wb-moysklad-proxy.<аккаунт>.workers.dev/api/ms` впишите в
+`CONFIG.PROXY_URL` в `index.html` (или в поле «Адрес прокси» в инструменте).
+
+## Если прокси перестал работать
 
 В инструменте откройте «Адрес прокси» под кнопкой «Подключиться» и укажите
 другой:

@@ -1,4 +1,4 @@
-// Прокси к API МойСклад для «Импорт заказов WB → МойСклад» (Netlify Function).
+// Прокси к API МойСклад для «Импорт заказов WB → МойСклад» (Netlify Function / Cloudflare Worker).
 // Страница на GitHub Pages обращается к https://wb-moysklad-proxy.netlify.app/api/ms,
 // функция — к api.moysklad.ru. Токен не сохраняется и не логируется,
 // ходим только на api.moysklad.ru и только в разрешённые разделы API.
@@ -12,8 +12,8 @@ const PASSTHROUGH_HEADERS = ['x-lognex-retry-after', 'x-ratelimit-remaining', 'x
 // переменную окружения ALLOWED_ORIGINS (через запятую).
 const STATIC_ORIGINS = ['https://homeresurs.github.io'];
 
-function allowedOrigins(selfOrigin) {
-  const extra = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+function allowedOrigins(selfOrigin, env) {
+  const extra = String(env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
   return new Set([...STATIC_ORIGINS, selfOrigin, ...extra]);
 }
 
@@ -73,16 +73,18 @@ async function forward(method, path, auth, body) {
   });
 }
 
-export default async (req) => {
+// Общий обработчик: Netlify Function и Cloudflare Worker (cloudflare/worker.mjs) вызывают его
+// с одним и тем же Request, env — переменные окружения конкретной платформы.
+export async function handle(req, env = {}) {
   const url = new URL(req.url);
   const origin = req.headers.get('origin') || '';
-  const cors = origin && (allowedOrigins(url.origin).has(origin) || isLocalDev(origin)) ? corsHeaders(origin) : {};
+  const cors = origin && (allowedOrigins(url.origin, env).has(origin) || isLocalDev(origin)) ? corsHeaders(origin) : {};
 
   if (origin && !Object.keys(cors).length) return fail(403, 'Запрос с чужого сайта отклонён: ' + origin);
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
 
   if (url.searchParams.has('ping')) {
-    return jsonResponse(200, { ok: true, proxy: 'netlify', node: process.version, region: process.env.AWS_REGION || null }, cors);
+    return jsonResponse(200, { ok: true, proxy: env.PROXY_NAME || 'netlify', region: env.AWS_REGION || env.CF_REGION || null }, cors);
   }
 
   const method = req.method.toUpperCase();
@@ -115,6 +117,8 @@ export default async (req) => {
     if (v) headers[h] = v;
   }
   return new Response(await upstream.text(), { status: upstream.status, headers });
-};
+}
+
+export default (req) => handle(req, typeof process !== 'undefined' ? process.env : {});
 
 export const config = { path: '/api/ms' };
