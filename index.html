@@ -249,7 +249,8 @@ tr.open .chev{transform:rotate(90deg)}
 const CONFIG = {
   // Адрес прокси. Страница на GitHub Pages ходит на Cloudflare Worker; если страница открыта
   // с Netlify-сайта — прокси на том же домене. PHP-хостинг: 'ms-proxy.php'. Свой nginx: '/ms-api'.
-  PROXY_URL: /\.netlify\.app$/i.test(location.hostname) ? '/api/ms' : 'https://wb-moysklad-proxy.lok19787.workers.dev/api/ms',
+  // Локальный запуск (local/wb-moysklad.bat) и Netlify отдают прокси на том же адресе, что и страницу.
+  PROXY_URL: /\.netlify\.app$|^(localhost|127\.0\.0\.1)$/i.test(location.hostname) ? '/api/ms' : 'https://wb-moysklad-proxy.lok19787.workers.dev/api/ms',
   // Запасные адреса прокси: если основной не отвечает, страница сама переключится. Сейчас запасных нет.
   PROXY_FALLBACKS: [],
   DEFAULT_AGENT: 'ВАЙЛДБЕРРИЗ',
@@ -1051,7 +1052,8 @@ function renderProxyLine(){
   if (p.status === 'checking') return `<div class="status-line"><span class="spin" style="color:var(--text-3)"></span>Проверка сервера-прокси…</div>`;
   if (p.status === 'ok') return `<div class="status-line"><span class="dot ok"></span>Сервер-прокси работает${p.info && p.info.proxy ? ' (' + esc(p.info.proxy) + ')' : ''}${p.warn ? ' · ' + esc(p.warn) : ''}</div>`;
   return `<div class="alert alert-err" style="margin:0 0 12px"><span class="ic">!</span><div><b>Прокси недоступен.</b> ${esc(p.error)}
-    <div style="margin-top:6px"><button class="btn xs ghost" data-action="ping">Проверить ещё раз</button></div></div></div>`;
+    <div style="margin-top:6px"><button class="btn xs ghost" data-action="ping">Проверить ещё раз</button></div>
+    ${/^(localhost|127\.0\.0\.1)$/i.test(location.hostname) ? '' : `<div class="help" style="margin-top:8px">Если прокси у вас часто недоступен (провайдер режет Cloudflare), запускайте инструмент на своём ПК: <a href="local/wb-moysklad-local.zip" download>скачать архив</a>, распаковать, дважды щёлкнуть <span class="mono">wb-moysklad.bat</span>.</div>`}</div></div>`;
 }
 
 function renderConn(){

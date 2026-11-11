@@ -79,6 +79,23 @@ npx wrangler deploy
 Адрес вида `https://wb-moysklad-proxy.<аккаунт>.workers.dev/api/ms` впишите в
 `CONFIG.PROXY_URL` в `index.html` (или в поле «Адрес прокси» в инструменте).
 
+## Запуск на своём ПК (если провайдер режет Cloudflare)
+
+У части провайдеров в РФ соединения с Cloudflare (в том числе `*.workers.dev`)
+обрываются: сначала работает, потом «Прокси недоступен», в консоли
+`ERR_QUIC_PROTOCOL_ERROR`. Тогда инструмент запускают локально:
+
+1. Скачать https://homeresurs.github.io/wb-moysklad/local/wb-moysklad-local.zip
+   (ссылка есть и в самом инструменте, в сообщении «Прокси недоступен»).
+2. Распаковать, дважды щёлкнуть `wb-moysklad.bat`.
+3. Откроется `http://localhost:8787/`. Окно консоли не закрывать.
+
+Скрипт `local/wb-moysklad-local.ps1` (Windows PowerShell 5.1, ничего ставить не нужно)
+при запуске скачивает свежие `index.html` и `vendor/` с GitHub Pages, отдаёт их
+на localhost и проксирует `/api/ms` напрямую в `api.moysklad.ru`.
+Архив `local/wb-moysklad-local.zip` собирается из `local/*.bat` и `local/*.ps1`:
+после их изменения пересоберите архив.
+
 ## Если прокси перестал работать
 
 В инструменте откройте «Адрес прокси» под кнопкой «Подключиться» и укажите
