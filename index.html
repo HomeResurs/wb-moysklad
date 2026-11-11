@@ -1047,13 +1047,30 @@ function renderHeader(){
   `;
 }
 
+const IS_LOCAL = /^(localhost|127\.0\.0\.1)$/i.test(location.hostname);
+const IS_MAC = /Mac/i.test(navigator.platform || navigator.userAgent || '');
+const MAC_CMD = 'curl -fsSL ' + new URL('local/mac/wb-moysklad.command', location.href).href
+  + ' -o ~/wb-moysklad.command && chmod +x ~/wb-moysklad.command && ~/wb-moysklad.command';
+
+// Подсказка про запуск на своём компьютере — если провайдер режет Cloudflare.
+function renderLocalHint(){
+  if (IS_LOCAL) return '';
+  const intro = 'Если прокси у вас часто недоступен (провайдер режет Cloudflare), запускайте инструмент на своём компьютере.';
+  if (IS_MAC) return `<div class="help" style="margin-top:8px">${intro} Mac: откройте «Терминал», вставьте команду и нажмите Enter.
+      Дальше — двойной щелчок по <span class="mono">wb-moysklad.command</span> в папке пользователя.
+      <div class="inline" style="margin-top:6px"><input type="text" readonly value="${esc(MAC_CMD)}" class="mono" style="font-size:11px" onclick="this.select()">
+      <button class="btn xs ghost" data-action="copy-mac">Копировать</button></div></div>`;
+  return `<div class="help" style="margin-top:8px">${intro} Windows: <a href="local/wb-moysklad-local.zip" download>скачать архив</a>, распаковать, дважды щёлкнуть <span class="mono">wb-moysklad.bat</span>.
+      Mac: <a href="#" data-action="show-mac">команда для Терминала</a>.</div>`;
+}
+
 function renderProxyLine(){
   const p = state.proxy;
   if (p.status === 'checking') return `<div class="status-line"><span class="spin" style="color:var(--text-3)"></span>Проверка сервера-прокси…</div>`;
   if (p.status === 'ok') return `<div class="status-line"><span class="dot ok"></span>Сервер-прокси работает${p.info && p.info.proxy ? ' (' + esc(p.info.proxy) + ')' : ''}${p.warn ? ' · ' + esc(p.warn) : ''}</div>`;
   return `<div class="alert alert-err" style="margin:0 0 12px"><span class="ic">!</span><div><b>Прокси недоступен.</b> ${esc(p.error)}
     <div style="margin-top:6px"><button class="btn xs ghost" data-action="ping">Проверить ещё раз</button></div>
-    ${/^(localhost|127\.0\.0\.1)$/i.test(location.hostname) ? '' : `<div class="help" style="margin-top:8px">Если прокси у вас часто недоступен (провайдер режет Cloudflare), запускайте инструмент на своём ПК: <a href="local/wb-moysklad-local.zip" download>скачать архив</a>, распаковать, дважды щёлкнуть <span class="mono">wb-moysklad.bat</span>.</div>`}</div></div>`;
+    ${renderLocalHint()}</div></div>`;
 }
 
 function renderConn(){
@@ -1361,6 +1378,13 @@ document.addEventListener('click', e => {
     case 'one': runOne(f, false); break;
     case 'force': runOne(f, true); break;
     case 'report': downloadReport(); break;
+    case 'copy-mac':
+      (navigator.clipboard ? navigator.clipboard.writeText(MAC_CMD) : Promise.reject()).then(() => toast('Команда скопирована — вставьте её в «Терминал».'), () => toast('Не удалось скопировать — выделите команду и скопируйте вручную.'));
+      break;
+    case 'show-mac':
+      e.preventDefault();
+      prompt('Команда для «Терминала» на Mac (скопируйте и нажмите Enter в Терминале):', MAC_CMD);
+      break;
     case 'copy-missing': {
       const text = ['Баркод\tАртикул\tШт'].concat(missingList().map(m => m.barcode + '\t' + m.article + '\t' + m.qty)).join('\n');
       (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast('Список скопирован — можно вставить в Excel.'), () => toast('Не удалось скопировать.'));

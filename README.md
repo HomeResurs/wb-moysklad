@@ -79,7 +79,9 @@ npx wrangler deploy
 Адрес вида `https://wb-moysklad-proxy.<аккаунт>.workers.dev/api/ms` впишите в
 `CONFIG.PROXY_URL` в `index.html` (или в поле «Адрес прокси» в инструменте).
 
-## Запуск на своём ПК (если провайдер режет Cloudflare)
+## Запуск на своём компьютере (если провайдер режет Cloudflare)
+
+### Windows
 
 У части провайдеров в РФ соединения с Cloudflare (в том числе `*.workers.dev`)
 обрываются: сначала работает, потом «Прокси недоступен», в консоли
@@ -95,6 +97,25 @@ npx wrangler deploy
 на localhost и проксирует `/api/ms` напрямую в `api.moysklad.ru`.
 Архив `local/wb-moysklad-local.zip` собирается из `local/*.bat` и `local/*.ps1`:
 после их изменения пересоберите архив.
+
+### Mac
+
+Один раз открыть «Терминал» и выполнить (команда есть и в самом инструменте,
+с кнопкой «Копировать», в сообщении «Прокси недоступен»):
+
+```bash
+curl -fsSL https://homeresurs.github.io/wb-moysklad/local/mac/wb-moysklad.command -o ~/wb-moysklad.command && chmod +x ~/wb-moysklad.command && ~/wb-moysklad.command
+```
+
+Дальше запускать двойным щелчком по `wb-moysklad.command` в папке пользователя
+(Finder, меню «Переход», «Личное»). Файл скачан через curl, поэтому Gatekeeper
+его не блокирует. Окно Терминала не закрывать, пока идёт работа.
+
+Как устроено: `local/mac/wb-moysklad.command` при каждом запуске скачивает свежий
+`local/mac/wb-moysklad.pl` и запускает его встроенным в macOS `perl`. Скрипт
+использует только стандартные модули Perl 5.34 (такой стоит в macOS), отдаёт
+страницу на `http://localhost:8787/` и ходит в `api.moysklad.ru` через системный
+`curl`. Файлы складываются в `~/Library/Application Support/wb-moysklad`.
 
 ## Если прокси перестал работать
 
