@@ -3,6 +3,9 @@ main = "cloudflare/worker.mjs"
 compatibility_date = "2026-10-01"
 workers_dev = true
 
+# Свой домен: workers.dev в РФ часто блокируется провайдерами, свой поддомен на Cloudflare — нет.
+routes = [{ pattern = "ms-proxy.my-plan-track.ru", custom_domain = true }]
+
 # Дополнительные адреса, с которых разрешены запросы из браузера (через запятую).
 # [vars]
 # ALLOWED_ORIGINS = "https://example.com"

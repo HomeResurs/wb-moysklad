@@ -236,7 +236,7 @@ tr.open .chev{transform:rotate(90deg)}
       <section class="card hidden" id="params"></section>
     </aside>
   </div>
-  <p class="foot">Запросы идут так: браузер → прокси (<span class="mono">wb-moysklad-proxy.lok19787.workers.dev</span>) → <span class="mono">api.moysklad.ru</span>. Токен хранится только в этом браузере.</p>
+  <p class="foot">Запросы идут так: браузер → прокси (<span class="mono">ms-proxy.my-plan-track.ru</span>) → <span class="mono">api.moysklad.ru</span>. Токен хранится только в этом браузере.</p>
 </div>
 <input type="file" id="file-input" accept=".xlsx,.xls,.xlsm,.csv" multiple>
 <div class="toasts" id="toasts"></div>
@@ -249,7 +249,9 @@ tr.open .chev{transform:rotate(90deg)}
 const CONFIG = {
   // Адрес прокси. Страница на GitHub Pages ходит на Cloudflare Worker; если страница открыта
   // с Netlify-сайта — прокси на том же домене. PHP-хостинг: 'ms-proxy.php'. Свой nginx: '/ms-api'.
-  PROXY_URL: /\.netlify\.app$/i.test(location.hostname) ? '/api/ms' : 'https://wb-moysklad-proxy.lok19787.workers.dev/api/ms',
+  PROXY_URL: /\.netlify\.app$/i.test(location.hostname) ? '/api/ms' : 'https://ms-proxy.my-plan-track.ru/api/ms',
+  // Запасные адреса: если основной не отвечает (например, провайдер блокирует домен), страница сама переключится.
+  PROXY_FALLBACKS: ['https://wb-moysklad-proxy.lok19787.workers.dev/api/ms'],
   DEFAULT_AGENT: 'ВАЙЛДБЕРРИЗ',
   DEFAULT_STORE: 'WB наш склад',
   QTY_ATTRIBUTE_NAME: 'Кол-во',          // доп. поле заказа покупателя: суммарное кол-во
@@ -267,6 +269,7 @@ const saved = loadSaved();
 const state = {
   theme: saved.theme || 'system',
   proxyUrl: saved.proxyUrl || CONFIG.PROXY_URL,
+  proxyAuto: false, // true — адрес выбран автоматически из PROXY_FALLBACKS, в настройки не сохраняется
   proxy: {status:'checking', info:null, error:null},
 
   authMethod: 'token',
@@ -308,7 +311,7 @@ function loadSaved(){
 function persist(){
   const data = {
     theme: state.theme,
-    proxyUrl: state.proxyUrl !== CONFIG.PROXY_URL ? state.proxyUrl : undefined,
+    proxyUrl: (state.proxyUrl !== CONFIG.PROXY_URL && !state.proxyAuto) ? state.proxyUrl : undefined,
     remember: state.remember,
     token: state.remember ? (state.token || undefined) : undefined,
     login: state.login || undefined,
@@ -439,22 +442,44 @@ async function pingProxy(){
     state.proxy = {status:'fail', error:'Указан прямой адрес МойСклад — из браузера он заблокирован CORS. Очистите поле «Адрес прокси», чтобы вернуть адрес по умолчанию'};
     update(); return;
   }
-  const url = isQueryStyle(base) ? base + (base.includes('?')?'&':'?') + 'ping=1' : base.replace(/\/+$/,'') + '/ping';
-  try{
-    const res = await fetch(url, {cache:'no-store', credentials:'same-origin'});
-    const text = await res.text();
-    if (/^\s*<\?php/.test(text)) throw new Error('PHP на хостинге не выполняется — включите PHP для сайта.');
-    let j; try{ j = JSON.parse(text); }catch(e){
-      if (res.status === 404 || /^\s*</.test(text)) throw new Error('По адресу «' + base + '» нет прокси. Проверьте, что на сервере развёрнут прокси (/api/ms или ms-proxy.php).');
-      throw new Error('Прокси ответил не JSON (HTTP ' + res.status + ').');
+  // Сначала текущий адрес, затем запасные (только при сетевой ошибке — блокировка, нет DNS и т.п.).
+  const candidates = [base, ...(CONFIG.PROXY_FALLBACKS || [])].filter((u, i, arr) => u && arr.indexOf(u) === i);
+  let lastError = null;
+  for (const candidate of candidates){
+    try{
+      const result = await pingOne(candidate);
+      if (candidate !== base){
+        state.proxyUrl = candidate; state.proxyAuto = true;
+        result.warn = 'Основной прокси недоступен, используется запасной: ' + candidate;
+      }
+      state.proxy = {status:'ok', info:result.info, error:null, warn:result.warn || null};
+      update(); return;
+    }catch(e){
+      lastError = e;
+      if (!e.network) break; // прокси ответил, но неверно — запасные не помогут
     }
-    if (!j.ok) throw new Error('Прокси ответил ошибкой.');
-    if (j.proxy === 'php' && j.curl === false) state.proxy = {status:'ok', info:j, error:null, warn:'На хостинге нет PHP-curl — работает запасной режим.'};
-    else state.proxy = {status:'ok', info:j, error:null};
-  }catch(e){
-    state.proxy = {status:'fail', info:null, error: e.message || 'Прокси недоступен.'};
   }
+  state.proxy = {status:'fail', info:null, error: (lastError && lastError.message) || 'Прокси недоступен.'};
   update();
+}
+
+async function pingOne(base){
+  const url = isQueryStyle(base) ? base + (base.includes('?')?'&':'?') + 'ping=1' : base.replace(/\/+$/,'') + '/ping';
+  let res;
+  try{
+    res = await fetch(url, {cache:'no-store', credentials:'same-origin', signal: AbortSignal.timeout(8000)});
+  }catch(e){
+    throw mkErr('network', 'Нет связи с прокси «' + base + '» (' + (e.message || 'ошибка сети') + '). Возможно, адрес блокирует провайдер или антивирус.', {network:true});
+  }
+  const text = await res.text();
+  if (/^\s*<\?php/.test(text)) throw new Error('PHP на хостинге не выполняется — включите PHP для сайта.');
+  let j; try{ j = JSON.parse(text); }catch(e){
+    if (res.status === 404 || /^\s*</.test(text)) throw new Error('По адресу «' + base + '» нет прокси. Проверьте, что на сервере развёрнут прокси (/api/ms или ms-proxy.php).');
+    throw new Error('Прокси ответил не JSON (HTTP ' + res.status + ').');
+  }
+  if (!j.ok) throw new Error('Прокси ответил ошибкой.');
+  const warn = (j.proxy === 'php' && j.curl === false) ? 'На хостинге нет PHP-curl — работает запасной режим.' : null;
+  return {info:j, warn};
 }
 
 /* ============================================================
@@ -1039,7 +1064,7 @@ function renderConn(){
         <div class="field" style="margin-top:8px">
           <div class="inline"><input type="text" id="in-proxy" data-bind="proxyUrl" value="${esc(state.proxyUrl)}" spellcheck="false">
           <button class="btn sm ghost" data-action="ping">Проверить</button></div>
-          <p class="help">По умолчанию: <span class="mono">https://wb-moysklad-proxy.lok19787.workers.dev/api/ms</span> · PHP-хостинг: <span class="mono">ms-proxy.php</span> · nginx: <span class="mono">/ms-api</span>. Пустое поле — адрес по умолчанию.</p>
+          <p class="help">По умолчанию: <span class="mono">https://ms-proxy.my-plan-track.ru/api/ms</span>, запасной: <span class="mono">https://wb-moysklad-proxy.lok19787.workers.dev/api/ms</span> · PHP-хостинг: <span class="mono">ms-proxy.php</span> · nginx: <span class="mono">/ms-api</span>. Пустое поле — адрес по умолчанию.</p>
         </div>
       </details>
     </div>`;
@@ -1332,7 +1357,7 @@ document.addEventListener('input', e => {
     const can = state.proxy.status !== 'fail' && (state.authMethod === 'token' ? !!state.token.trim() : (!!state.login && !!state.password));
     if (btn && !state.connecting) btn.disabled = !can;
   }
-  if (b === 'proxyUrl'){ state.proxyUrl = e.target.value.trim() || CONFIG.PROXY_URL; persist(); }
+  if (b === 'proxyUrl'){ state.proxyUrl = e.target.value.trim() || CONFIG.PROXY_URL; state.proxyAuto = false; persist(); }
 });
 
 document.addEventListener('change', e => {
